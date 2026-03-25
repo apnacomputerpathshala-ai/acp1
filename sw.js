@@ -1,8 +1,24 @@
+const CACHE_NAME = 'acp-portal-v1';
+const assets = [
+  './acp10.html',
+  './manifest.json',
+  './logo-.jpg'
+];
+
+// इंस्टॉल होने पर फाइलों को कैश करना
 self.addEventListener('install', (e) => {
-  console.log('Service Worker Installed');
+  e.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(assets);
+    })
+  );
 });
 
+// ऑफलाइन सपोर्ट के लिए फेच इवेंट
 self.addEventListener('fetch', (e) => {
-  // यह ऐप को ऑफलाइन चलाने या कैश करने में मदद करता है
-  e.respondWith(fetch(e.request));
+  e.respondWith(
+    caches.match(e.request).then((response) => {
+      return response || fetch(e.request);
+    })
+  );
 });
