@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Apna Computer Pathshala</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --primary: #1a237e; --accent: #2979ff; --bg: #f0f4f8; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; overflow: hidden; height: 100dvh; width: 100vw; display: flex; flex-direction: column; }
+        #admin-main, #student-main { display: none; flex: 1; width: 100vw; overflow: hidden; position: relative; }
+        .sidebar { width: 260px; background: var(--primary); color: white; display: flex; flex-direction: column; transition: 0.3s; position: relative; z-index: 1000; height: 100%; }
+        .sidebar.hidden { margin-left: -260px; }
+        .main-content { flex: 1; display: flex; flex-direction: column; background: #fff; overflow: hidden; height: 100%; position: relative; }
+        .top-nav { background: var(--primary); color: white; padding: 10px 15px; display: flex; align-items: center; gap: 10px; justify-content: space-between; min-height: 55px; }
+        .toggle-btn { background: none; color: white; border: none; font-size: 20px; cursor: pointer; }
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 10px; background: #fff; border-bottom: 1px solid #eee; }
+        .stat-card { background: #f8f9fa; padding: 5px; border-radius: 8px; text-align: center; border: 1px solid #ddd; }
+        .stat-card h4 { margin: 0; font-size: 10px; color: #777; text-transform: uppercase; }
+        .stat-card p { margin: 2px 0 0; font-size: 15px; font-weight: 800; color: var(--primary); }
+        #admin-display-area, .chat-area { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; background: #f0f4f8; scroll-behavior: smooth; }
+        .msg-bubble { max-width: 85%; padding: 10px; border-radius: 15px; font-size: 14px; position: relative; word-wrap: break-word; display: flex; flex-direction: column; }
+        .chat-img { width: 100%; max-width: 220px; border-radius: 10px; margin-top: 5px; cursor: pointer; }
+        .input-bar { padding: 10px; background: #fff; border-top: 1px solid #eee; display: flex; align-items: center; gap: 8px; min-height: 60px; }
+        .input-bar input { flex: 1; padding: 12px; border-radius: 25px; border: 1px solid #ddd; outline: none; }
+        .card-item { background: #fff; margin: 6px 12px; padding: 10px; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border-left: 4px solid var(--accent); }
+        .att-img { width: 40px !important; height: 40px !important; border-radius: 50%; object-fit: cover; border: 1px solid #eee; }
+        .portal-footer { background: #f8f9fa; color: #666; text-align: center; padding: 8px; font-size: 10px; border-top: 1px solid #eee; }
+        .sidebar-footer { padding: 15px; font-size: 9px; text-align: center; opacity: 0.7; border-top: 1px solid rgba(255,255,255,0.1); margin-top: auto; }
+        .menu-item { padding: 12px 20px; cursor: pointer; display: flex; align-items: center; gap: 12px; font-size: 14px; }
+        .menu-item.active { background: rgba(255, 255, 255, 0.1); color: var(--accent); border-left: 4px solid var(--accent); }
+        #img-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:10001; justify-content:center; align-items:center; cursor: zoom-out; }
+        #img-modal img { max-width: 95%; max-height: 90%; border-radius: 10px; }
+        
+        .recording { color: red !important; animation: blink 1s infinite; }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        .install-btn { background: linear-gradient(45deg, #ff5252, #ff1744); color: white; border: none; padding: 12px; margin: 10px 15px; border-radius: 8px; font-weight: bold; cursor: pointer; display: none; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        
+        @media (max-width: 768px) { .sidebar { position: fixed; left: 0; top: 0; height: 100%; } .sidebar.hidden { left: -260px; } }
+    </style>
+</head>
+<body>
+    <div id="img-modal" onclick="this.style.display='none'"><img id="modal-target" src=""></div>
+
+    <div id="auth-overlay" style="position: fixed; inset: 0; background: #1a237e; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white;">
+        <h2>APNA COMPUTER PATHSHALA</h2>
+        <div id="login-form" style="background: rgba(255,255,255,0.1); padding: 25px; border-radius: 15px; width: 300px; text-align: center; backdrop-filter: blur(8px);">
+            <input type="text" id="login-id" placeholder="Student ID" style="width:100%; padding:12px; margin-bottom:12px; border-radius:8px; border:none;">
+            <input type="password" id="login-pass" placeholder="Password" style="width:100%; padding:12px; margin-bottom:12px; border-radius:8px; border:none;">
+            <button onclick="processLogin()" style="width:100%; padding:12px; background:var(--accent); color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">LOGIN</button>
+            <p onclick="toggleAuth(true)" style="font-size:11px; margin-top:12px; cursor:pointer; opacity:0.8;">New Registration</p>
+        </div>
+        <div id="register-form" style="display:none; background: rgba(255,255,255,0.1); padding: 25px; border-radius: 15px; width: 300px; text-align: center;">
+            <img id="reg-preview" src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" style="width:65px; height:65px; border-radius:50%; object-fit:cover; border:2px solid #fff;">
+            <br><button onclick="document.getElementById('reg-photo').click()" style="font-size:10px; margin:8px; border:none; cursor:pointer;">Select Photo</button>
+            <input type="file" id="reg-photo" style="display:none;" onchange="previewProfile(this)">
+            <input type="text" id="reg-name" placeholder="Full Name (CAPITALS)" style="width:100%; padding:10px; margin-bottom:10px; border-radius:5px; border:none;">
+            <input type="text" id="reg-id" placeholder="Create ID" style="width:100%; padding:10px; margin-bottom:10px; border-radius:5px; border:none;">
+            <input type="password" id="reg-pass" placeholder="Password" style="width:100%; padding:10px; margin-bottom:10px; border-radius:5px; border:none;">
+            <button onclick="processRegister()" style="width:100%; padding:12px; background:#4caf50; color:white; border:none; border-radius:8px; font-weight:bold;">REGISTER</button>
+            <p onclick="toggleAuth(false)" style="font-size:11px; margin-top:12px; cursor:pointer;">Back</p>
+        </div>
+    </div>
+
+    <div id="admin-main">
+        <div class="sidebar hidden" id="admin-sidebar">
+            <div style="padding:25px 15px; text-align:center;">
+                <img id="admin-p-img" onclick="uploadAdminPhoto()" src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" style="width:55px; border-radius:50%; border:2px solid #fff; cursor:pointer;">
+                <h3 onclick="updateAdminProfile()" style="margin:10px 0 0; font-size:16px; cursor:pointer;">APNA COMPUTER PATHSHALA</h3>
+            </div>
+            <div class="menu-item active" onclick="switchTab('quizzes', this)"><i class="fas fa-trophy"></i> Leaderboard</div>
+            <div class="menu-item" onclick="switchTab('attendance', this)"><i class="fas fa-user-check"></i> Attendance</div>
+            <div class="menu-item" onclick="switchTab('student_credentials', this)"><i class="fas fa-users"></i> Student IDs</div>
+            <div class="menu-item" onclick="openAdminGroupChat(this)"><i class="fas fa-bullhorn"></i> Group Chat</div>
+            <div class="menu-item" onclick="switchTab('monitor', this)"><i class="fas fa-eye"></i> Monitor Private</div>
+            <div class="menu-item" onclick="switchTab('recycle_bin', this)"><i class="fas fa-trash"></i> Recycle Bin</div>
+            <div class="menu-item" onclick="switchTab('monthly_report', this)"><i class="fas fa-file-invoice"></i> Monthly Report</div>
+            <div class="sidebar-footer">© 2026 Apna Computer Pathshala<br>डिजिटल लर्निंग एवं डाउट सॉल्वर | सूरज कुमार</div>
+            <button id="admin-install-btn" class="install-btn" onclick="installPortalApp()"><i class="fas fa-download"></i> INSTALL APP</button>
+            <button onclick="logout()" style="margin: 15px; padding: 10px; background: #f44336; color:white; border:none; border-radius:8px; cursor:pointer;">Logout</button>
+        </div>
+        <div class="main-content">
+            <div class="top-nav"><button class="toggle-btn" onclick="toggleSidebar('admin-sidebar')"><i class="fas fa-bars"></i></button><b id="admin-top-title">Leaderboard</b><input type="date" id="admin-date" onchange="loadAdminData()" style="width:125px; border-radius:5px; border:none; padding:4px;"></div>
+            <div class="stats-grid"><div class="stat-card"><h4>Live</h4><p id="online-count">0</p></div><div class="stat-card"><h4>Present</h4><p id="present-count">0</p></div><div class="stat-card"><h4>Total</h4><p id="total-ids">0</p></div></div>
+            <div id="admin-display-area"></div>
+            <div id="admin-reply-box" class="input-bar" style="display:none;">
+                <input type="file" id="admin-file" style="display:none;" accept="image/*,application/pdf,video/*" onchange="sendPhoto('admin')">
+                <button onclick="document.getElementById('admin-file').click()" style="color:var(--accent); font-size:1.4rem; background:none; border:none;"><i class="fas fa-camera"></i></button>
+                <button id="voice-btn-admin" onclick="toggleVoiceRecord('admin')" style="background:none; border:none; color:var(--accent); font-size:1.4rem;"><i class="fas fa-microphone"></i></button>
+                <input type="text" id="admin-msg-input" placeholder="Reply...">
+                <button onclick="sendAdminReply()" style="background:var(--primary); color:white; border:none; width:45px; height:45px; border-radius:50%;"><i class="fas fa-paper-plane"></i></button>
+            </div>
+            <footer class="portal-footer">© 2026 Apna Computer Pathshala | सूरज कुमार</footer>
+        </div>
+    </div>
+
+    <div id="student-main">
+        <div class="sidebar hidden" id="std-sidebar">
+            <div style="padding:25px; text-align:center;"><img id="std-p-img" style="width:65px; height:65px; border-radius:50%; border:2px solid white; object-fit:cover;"><h3 id="std-name-side" style="font-size:16px; margin-top:10px;">Student</h3></div>
+            <div class="menu-item active" onclick="stdSwitch('chat', this)"><i class="fas fa-comments"></i> Doubt Box</div>
+            <div class="menu-item" onclick="stdSwitch('p2p', this)"><i class="fas fa-user-friends"></i> Private Chat</div>
+            <div class="menu-item" onclick="stdSwitch('group', this)"><i class="fas fa-users"></i> Global Group</div>
+            <div class="menu-item" onclick="stdSwitch('leader', this)"><i class="fas fa-award"></i> Leaderboard</div>
+            <div class="sidebar-footer">© 2026 Apna Computer Pathshala<br>डिजिटल लर्निंग एवं डाउट सॉल्वर | सूरज कुमार</div>
+            <button id="std-install-btn" class="install-btn" onclick="installPortalApp()"><i class="fas fa-download"></i> INSTALL APP</button>
+            <button onclick="logout()" style="margin: 15px; padding: 10px; background: #f44336; color:white; border:none; border-radius:8px; cursor:pointer;">EXIT PORTAL</button>
+        </div>
+        <div class="main-content">
+            <div class="top-nav"><button class="toggle-btn" onclick="toggleSidebar('std-sidebar')"><i class="fas fa-bars"></i></button><b id="std-top-title">Doubt Box</b></div>
+            
+            <div id="std-chat-container" class="main-content" style="display:flex;">
+                <div id="std-chat-area" class="chat-area"></div>
+                <div class="input-bar">
+                    <input type="file" id="std-file" style="display:none;" accept="image/*,application/pdf,video/*" onchange="sendPhoto('personal')">
+                    <button onclick="document.getElementById('std-file').click()" style="color:var(--accent); font-size:1.4rem; background:none; border:none;"><i class="fas fa-camera"></i></button>
+                    <button id="voice-btn-std" onclick="toggleVoiceRecord('personal')" style="background:none; border:none; color:var(--accent); font-size:1.4rem;"><i class="fas fa-microphone"></i></button>
+                    <input type="text" id="std-msg-in" placeholder="Ask doubt...">
+                    <button onclick="sendStdPersonalChat()" style="background:var(--primary); color:white; border:none; width:45px; height:45px; border-radius:50%;"><i class="fas fa-paper-plane"></i></button>
+                </div>
+            </div>
+
+            <div id="std-p2p-container" class="main-content" style="display:none; padding:15px;">
+                <p id="p2p-info">Chat with Friend (Enter ID):</p>
+                <div style="display:flex; gap:10px; margin-bottom:15px;"><input type="text" id="p2p-friend-id" placeholder="Friend ID..." style="flex:1; padding:12px; border-radius:8px; border:1px solid #ccc;"><button onclick="checkAndStartChat()" style="background:var(--accent); color:white; border:none; width:45px; border-radius:8px;"><i class="fas fa-search"></i></button></div>
+                <div id="p2p-chat-box" style="display:none; flex:1; flex-direction:column; overflow:hidden; height:100%;"><div id="p2p-msg-area" class="chat-area"></div><div class="input-bar"><input type="file" id="p2p-file" style="display:none;" accept="image/*,application/pdf,video/*" onchange="sendPhoto('p2p')"><button onclick="document.getElementById('p2p-file').click()" style="color:var(--accent); font-size:1.4rem; background:none; border:none;"><i class="fas fa-camera"></i></button><input type="text" id="p2p-msg-input" placeholder="Message..."><button onclick="sendP2P()" style="background:var(--primary); color:white; border-radius:50%; width:45px; height:45px; border:none;"><i class="fas fa-paper-plane"></i></button></div></div>
+            </div>
+
+            <div id="std-group-container" class="main-content" style="display:none;">
+                <div id="std-group-area" class="chat-area"></div>
+                <div class="input-bar">
+                    <input type="text" id="std-group-msg-in" placeholder="Group chat...">
+                    <button onclick="sendStdGroupChat()" style="background:var(--primary); color:white; border:none; width:45px; height:45px; border-radius:50%;"><i class="fas fa-paper-plane"></i></button>
+                </div>
+            </div>
+
+            <div id="std-leader-container" class="main-content" style="display:none; padding:15px; overflow-y:auto;"><h3 style="text-align:center;">Ranking</h3><div id="std-leader-list"></div></div>
+            <footer class="portal-footer">© 2026 Apna Computer Pathshala | सूरज कुमार</footer>
+        </div>
+    </div>
+
+<script>
+    const firebaseConfig = { databaseURL: "https://apnapathshala-73-default-rtdb.firebaseio.com" };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const today = new Date().toISOString().split('T')[0];
+    const msgSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3');
+    let user = null; let currentMode = 'quizzes'; let activeChatID = ""; let activeP2PUser = ""; let isGroupMode = false; let lastMsgCount = 0;
+    let mediaRecorder; let audioChunks = []; let deferredPrompt;
+
+    function speak(t) { const m = new SpeechSynthesisUtterance(); m.text = t; m.lang = 'hi-IN'; window.speechSynthesis.speak(m); }
+    window.onload = () => { const sessionUser = localStorage.getItem('sessionUser'); const sessionRole = localStorage.getItem('sessionRole'); if(sessionUser && sessionRole) { if(sessionRole === 'admin') openAdmin(); else { user = JSON.parse(sessionUser); openStudent(); } } };
+    
+    function formatLinks(t) { if (!t) return ""; const r = /(https?:\/\/[^\s]+)/g; return t.replace(r, (u) => `<a href="${u}" target="_blank" style="color:#2979ff;">${u}</a>`); }
+    function openFullImg(src) { document.getElementById('modal-target').src = src; document.getElementById('img-modal').style.display = 'flex'; }
+
+    function formatMessage(text) {
+        if (!text) return "";
+        const ytRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+        const match = text.match(ytRegex);
+        let html = formatLinks(text);
+        if (match && match[1]) {
+            html += `<div style="margin-top:10px; position:relative; padding-bottom:56.25%; height:0; overflow:hidden; border-radius:8px;"><iframe style="position:absolute; top:0; left:0; width:100%; height:100%;" src="https://www.youtube.com/embed/${match[1]}" frameborder="0" allowfullscreen></iframe></div>`;
+        }
+        return html;
+    }
+
+    async function processLogin() {
+        const id = document.getElementById('login-id').value.trim(); const ps = document.getElementById('login-pass').value.trim();
+        if(id === 'admin' && ps === 'suraj@7070') { localStorage.setItem('sessionUser', 'admin'); localStorage.setItem('sessionRole', 'admin'); speak("स्वागत है सूरज सर।"); openAdmin(); }
+        else {
+            const snap = await db.ref(`student_credentials/${id}`).once('value'); const d = snap.val();
+            if(d && d.pass === ps) { user = { id, name: d.name, photo: d.photo }; localStorage.setItem('sessionUser', JSON.stringify(user)); localStorage.setItem('sessionRole', 'student'); db.ref(`attendance/${today}/${id}`).set({ name: d.name, time: new Date().toLocaleTimeString(), photo: d.photo || "" }); speak(`नमस्ते ${d.name}`); openStudent(); }
+            else alert("गलत आईडी या पासवर्ड!");
+        }
+    }
+
+    function processRegister() {
+        const n = document.getElementById('reg-name').value.trim().toUpperCase(); const id = document.getElementById('reg-id').value.trim(); const ps = document.getElementById('reg-pass').value.trim(); const fl = document.getElementById('reg-photo').files[0];
+        if(n && id && ps) { const save = (img) => db.ref(`student_credentials/${id}`).set({ name: n, pass: ps, photo: img }).then(() => { speak(`बधाई हो ${n}`); alert("Success!"); toggleAuth(false); }); if(fl) { const r = new FileReader(); r.onloadend = () => save(r.result); r.readAsDataURL(fl); } else save(""); }
+    }
+
+    function openAdmin() { document.getElementById('auth-overlay').style.display='none'; document.getElementById('admin-main').style.display='flex'; document.getElementById('admin-date').value=today; loadAdminData(); trackStats(); }
+    function openStudent() { document.getElementById('auth-overlay').style.display='none'; document.getElementById('student-main').style.display='flex'; document.getElementById('std-p-img').src=user.photo||''; document.getElementById('std-name-side').innerText=user.name; stdSwitch('chat', document.querySelector('.menu-item')); trackOnline(); }
+
+    function updateAdminProfile() { const n = prompt("अपना नया नाम लिखें:", "Suraj Sir"); if(n) document.querySelector('#admin-sidebar h3').innerText = n; }
+    function uploadAdminPhoto() { const inp = document.createElement('input'); inp.type='file'; inp.accept='image/*'; inp.onchange=(e)=>{const r=new FileReader(); r.onload=()=>{document.getElementById('admin-p-img').src=r.result; alert("फोटो अपडेट!");}; r.readAsDataURL(e.target.files[0]);}; inp.click(); }
+
+    function switchTab(t, el) { 
+        currentMode = t; isGroupMode = false;
+        document.querySelectorAll('#admin-sidebar .menu-item').forEach(m => m.classList.remove('active')); el.classList.add('active'); 
+        document.querySelector('#admin-top-title').innerText = el.innerText;
+        document.getElementById('admin-reply-box').style.display = 'none'; loadAdminData(); 
+        if(window.innerWidth < 768) toggleSidebar('admin-sidebar');
+    }
+
+    function loadAdminData() {
+        const area = document.getElementById('admin-display-area'); const d = document.getElementById('admin-date').value; area.innerHTML = "";
+        if(currentMode === 'attendance') {
+            db.ref(`attendance/${d}`).on('value', snap => { 
+                area.innerHTML = `<h4>Attendance (${d})</h4>`; 
+                snap.forEach(c => { 
+                    const v = c.val(); 
+                    area.innerHTML += `<div class="card-item"><div style="display:flex;align-items:center;gap:12px;"><img class="att-img" src="${v.photo||''}"><div><b>${v.name}</b><br><small><i class="fas fa-clock"></i> ${v.time}</small></div></div><i class="fas fa-trash" style="color:red;cursor:pointer;" onclick="deleteData('attendance/${d}/${c.key}')"></i></div>`; 
+                }); 
+            });
+        } else if(currentMode === 'student_credentials') {
+            area.innerHTML = `<div style="padding:10px;"><input type="text" id="id-search" placeholder="ID सर्च करें..." onkeyup="searchIDs()" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;"></div><div id="ids-list"></div>`;
+            searchIDs();
+        } else if(currentMode === 'monitor') {
+            db.ref('p2p_chats').on('value', snap => { area.innerHTML = "<h4>Monitor Private Chats</h4>"; snap.forEach(room => { area.innerHTML += `<div class="card-item"><b style="cursor:pointer;color:blue;" onclick="monitorSpecific('${room.key}')">Room: ${room.key}</b><i class="fas fa-trash" style="color:red;cursor:pointer;" onclick="deleteData('p2p_chats/${room.key}')"></i></div>`; }); });
+        } else if(currentMode === 'recycle_bin') {
+            area.innerHTML = `<h4>Recycle Bin</h4><div style="padding:10px;"><input type="text" id="recycle-search" placeholder="डेटा खोजें..." onkeyup="searchRecycleBin()" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;"></div><div id="recycle-list"></div>`;
+            searchRecycleBin();
+        } else if(currentMode === 'monthly_report') {
+            loadMonthlyReport();
+        } else if(currentMode === 'quizzes') {
+            db.ref(`quizzes/${d}`).on('value', snap => { 
+                area.innerHTML = "<h4>Leaderboard</h4>"; 
+                if(!snap.exists()) { area.innerHTML += "<p style='text-align:center;'>आज कोई स्कोर नहीं है।</p>"; return; }
+                snap.forEach(c => { 
+                    area.innerHTML += `<div class="card-item"><b>${c.key}</b><div style="display:flex; align-items:center; gap:15px;"><span>Score: ${c.val().score}</span><i class="fas fa-trash" style="color:red; cursor:pointer;" onclick="deleteData('quizzes/${d}/${c.key}')"></i></div></div>`; 
+                }); 
+            });
+        }
+    }
+
+    function searchIDs() {
+        const term = document.getElementById('id-search')?.value.toLowerCase() || ""; const list = document.getElementById('ids-list');
+        db.ref('student_credentials').on('value', snap => { list.innerHTML = ""; snap.forEach(c => { const v = c.val(); if(c.key.toLowerCase().includes(term) || v.name.toLowerCase().includes(term)) { list.innerHTML += `<div class="card-item" style="padding:10px;"><div style="display:flex; align-items:center; gap:10px;"><img src="${v.photo || ''}" style="width:35px; height:35px; border-radius:50%; object-fit:cover; border:1px solid #ddd;"><div><b style="font-size:14px; color:var(--primary);">${v.name}</b><p style="font-size:11px; margin:2px 0; color:#444;"><strong>ID:</strong> ${c.key} | <strong>Pass:</strong> <span style="color:#d32f2f;">${v.pass}</span></p></div></div><div style="display:flex; gap:15px;"><i class="fas fa-comments" style="color:var(--accent); cursor:pointer; font-size:18px;" onclick="openAdminChat('${c.key}')" title="Chat"></i><i class="fas fa-trash" style="color:#f44336; cursor:pointer; font-size:16px;" onclick="deleteData('student_credentials/${c.key}')" title="Delete"></i></div></div>`; } }); });
+    }
+
+    function monitorSpecific(r) {
+        const area = document.getElementById('admin-display-area');
+        db.ref(`p2p_chats/${r}`).on('value', s => {
+            area.innerHTML = `<button onclick="loadAdminData()" style="margin-bottom:10px; padding:5px 10px; cursor:pointer;">← Back</button><h3>Room: ${r}</h3>`;
+            if(!s.exists()) { area.innerHTML += "<p>कोई संदेश नहीं है।</p>"; return; }
+            s.forEach(m => {
+                const d = m.val();
+                let displayMsg = "";
+                if(d.type === 'file') {
+                    if(d.fileFormat === 'pdf') displayMsg = `[PDF] <a href="${d.msg}" target="_blank">View File</a>`;
+                    else if(d.fileFormat === 'video') displayMsg = `<video src="${d.msg}" style="width:150px;" controls></video>`;
+                    else if(d.fileFormat === 'audio') displayMsg = `<audio src="${d.msg}" controls style="height:30px;"></audio>`;
+                    else displayMsg = `<img src="${d.msg}" style="width:100px; border-radius:5px;" onclick="openFullImg(this.src)">`;
+                } else { displayMsg = formatMessage(d.msg); }
+                area.innerHTML += `<div style="border-bottom:1px solid #eee; padding:8px;"><b style="color:var(--primary);">${d.sender}:</b> ${displayMsg}<span style="color:red; cursor:pointer; float:right;" onclick="deleteData('p2p_chats/${r}/${m.key}')">Delete</span></div>`;
+            });
+        });
+    }
+
+    function loadChatMessages(path, areaId, myName) {
+        const area = document.getElementById(areaId); const isGlobal = path.includes('group_chats'); const isAdmin = (localStorage.getItem('sessionRole') === 'admin');
+        db.ref(path).off();
+        db.ref(path).on('value', snap => {
+            if(snap.numChildren() > lastMsgCount) msgSound.play().catch(e=>{});
+            lastMsgCount = snap.numChildren();
+            area.innerHTML = "";
+            snap.forEach(msg => {
+                const d = msg.val(); let isMe = false;
+                
+                if(isGlobal) {
+                    if(isAdmin) isMe = (d.sender === "SIR");
+                    else isMe = (d.sender !== "SIR" && d.sender === myName);
+                } else {
+                    isMe = (d.sender === myName || (isAdmin && d.sender === "SIR"));
+                }
+                
+                const div = document.createElement('div'); div.className = "msg-bubble";
+                div.style.cssText = `align-self:${isMe?'flex-end':'flex-start'}; background:${isMe?'#dcf8c6':'#fff'}; margin-bottom:8px; box-shadow:0 1px 2px rgba(0,0,0,0.1); padding:10px; border-radius:12px; max-width:85%;`;
+                let content = `<small style="font-size:9px; color:${d.sender==='SIR'?'red':'blue'}; font-weight:bold;">${d.sender}</small>`;
+                if (d.type === 'file') {
+                    if (d.fileFormat === 'pdf') content += `<div style="border:1px solid #ddd; padding:10px; border-radius:8px; text-align:center; background:#f9f9f9; margin-top:5px;"><i class="fas fa-file-pdf" style="font-size:35px; color:red;"></i><p style="font-size:10px; margin:5px 0;">${d.fileName}</p><a href="${d.msg}" download="${d.fileName}" style="background:var(--accent); color:white; padding:4px 10px; border-radius:4px; text-decoration:none; font-size:11px;">Download</a></div>`;
+                    else if (d.fileFormat === 'video') content += `<video controls style="width:100%; border-radius:8px; margin-top:5px;"><source src="${d.msg}"></video>`;
+                    else if (d.fileFormat === 'audio') content += `<audio controls style="width:200px; height:35px; margin-top:5px;"><source src="${d.msg}" type="audio/mp3"></audio>`;
+                    else content += `<img src="${d.msg}" class="chat-img" onclick="openFullImg(this.src)"><a href="${d.msg}" download="photo.png" style="font-size:11px; color:#2979ff; display:block; margin-top:5px;"><i class="fas fa-download"></i> Download</a>`;
+                } else { content += `<p style="margin:5px 0;">${formatMessage(d.msg)}</p>`; }
+                if (isMe && !isGlobal) { const tickColor = d.seen ? '#2979ff' : '#999'; content += `<span style="font-size:10px; color:${tickColor}; float:right; margin-left:5px;"><i class="fas fa-check-double"></i></span>`; }
+                
+                if (isAdmin || (!isGlobal && isMe)) {
+                    content += `<span style="font-size:9px; color:red; cursor:pointer; text-align:right; display:block; margin-top:5px;" onclick="deleteData('${path}/${msg.key}')"><i class="fas fa-trash"></i> Delete</span>`;
+                }
+                div.innerHTML = content; area.appendChild(div);
+            }); area.scrollTop = area.scrollHeight;
+        });
+    }
+
+    function stdSwitch(m, el) {
+        document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active')); el.classList.add('active');
+        document.getElementById('std-chat-container').style.display = m === 'chat' ? 'flex' : 'none';
+        document.getElementById('std-p2p-container').style.display = m === 'p2p' ? 'flex' : 'none';
+        document.getElementById('std-group-container').style.display = m === 'group' ? 'flex' : 'none';
+        document.getElementById('std-leader-container').style.display = m === 'leader' ? 'block' : 'none';
+        if(m === 'chat') { 
+            document.getElementById('std-top-title').innerText = "Doubt Box"; 
+            loadChatMessages(`personal_chats/${user.id}`, 'std-chat-area', user.name); 
+            db.ref(`personal_chats/${user.id}`).once('value', s => { s.forEach(c => { if(c.val().sender === "SIR") db.ref(`personal_chats/${user.id}/${c.key}`).update({seen:true}); }); });
+        }
+        if(m === 'group') { document.getElementById('std-top-title').innerText = "Global Group Chat"; loadChatMessages('group_chats', 'std-group-area', user.name); }
+        if(m === 'leader') { document.getElementById('std-top-title').innerText = "Leaderboard"; db.ref(`quizzes/${today}`).on('value', snap => { const list = document.getElementById('std-leader-list'); list.innerHTML = ""; snap.forEach(c => list.innerHTML += `<div class="card-item"><b>${c.key}</b> <span>Score: ${c.val().score}</span></div>`); }); }
+        if(window.innerWidth < 768) toggleSidebar('std-sidebar');
+    }
+
+    function openAdminGroupChat(el) { isGroupMode = true; switchTab('group_chats', el); document.getElementById('admin-reply-box').style.display = 'flex'; loadChatMessages('group_chats', 'admin-display-area', "SIR"); }
+    
+    function sendPhoto(m) {
+        let inputId = (m === 'admin') ? 'admin-file' : (m === 'p2p' ? 'p2p-file' : 'std-file');
+        const file = document.getElementById(inputId).files[0];
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024) { alert("File size must be less than 2MB"); return; }
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            let path = (m === 'admin') ? (isGroupMode ? 'group_chats' : `personal_chats/${activeChatID}`) : (m === 'p2p' ? `p2p_chats/${[user.id, activeP2PUser].sort().join("_")}` : `personal_chats/${user.id}`);
+            let fileType = 'image';
+            if (file.type.includes('pdf')) fileType = 'pdf';
+            else if (file.type.includes('video')) fileType = 'video';
+            db.ref(path).push({ sender: (m==='admin'?"SIR":user.name), msg: reader.result, type: 'file', fileFormat: fileType, fileName: file.name, timestamp: Date.now() });
+            document.getElementById(inputId).value = "";
+        };
+        reader.readAsDataURL(file);
+    }
+
+    async function toggleVoiceRecord(mode) {
+        const btnId = mode === 'admin' ? 'voice-btn-admin' : 'voice-btn-std';
+        const btn = document.getElementById(btnId);
+        if (!mediaRecorder || mediaRecorder.state === "inactive") {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream); audioChunks = [];
+            mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+            mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    let path = (mode === 'admin') ? (isGroupMode ? 'group_chats' : `personal_chats/${activeChatID}`) : `personal_chats/${user.id}`;
+                    db.ref(path).push({ sender: (mode === 'admin' ? "SIR" : user.name), msg: reader.result, type: 'file', fileFormat: 'audio', timestamp: Date.now() });
+                };
+                reader.readAsDataURL(audioBlob);
+            };
+            mediaRecorder.start(); btn.classList.add('recording');
+        } else { mediaRecorder.stop(); btn.classList.remove('recording'); }
+    }
+
+    function deleteData(path) {
+        if(confirm("Confirm Delete? (Saved in Recycle Bin)")) {
+            db.ref(path).once('value', snap => {
+                if (snap.exists()) {
+                    db.ref('recycle_bin').push({ path, data: snap.val(), deletedAt: new Date().toLocaleString() })
+                    .then(() => db.ref(path).remove());
+                } else db.ref(path).remove();
+            });
+        }
+    }
+
+    function restoreData(key) {
+        db.ref(`recycle_bin/${key}`).once('value', snap => {
+            if (snap.exists()) {
+                const d = snap.val();
+                db.ref(d.path).set(d.data).then(() => {
+                    db.ref(`recycle_bin/${key}`).remove();
+                    speak("Data Restored");
+                });
+            }
+        });
+    }
+
+    function searchRecycleBin() {
+        const term = document.getElementById('recycle-search')?.value.toLowerCase() || "";
+        const list = document.getElementById('recycle-list');
+        db.ref('recycle_bin').on('value', snap => {
+            list.innerHTML = "";
+            if(!snap.exists()) { list.innerHTML = "<p style='text-align:center;'>Empty Bin</p>"; return; }
+            snap.forEach(c => {
+                const d = c.val();
+                if (d.path.toLowerCase().includes(term)) {
+                    list.innerHTML += `<div class="card-item" style="flex-direction:column;align-items:flex-start;padding:12px;"><div style="width:100%;display:flex;justify-content:space-between;"><b>Path: ${d.path}</b><div><i class="fas fa-undo" style="color:green;margin-right:15px;cursor:pointer;" onclick="restoreData('${c.key}')" title="Restore"></i><i class="fas fa-trash" style="color:red;cursor:pointer;" onclick="db.ref('recycle_bin/${c.key}').remove()" title="Permanent Delete"></i></div></div><small>${d.deletedAt}</small></div>`;
+                }
+            });
+        });
+    }
+
+    function loadMonthlyReport() {
+        const area = document.getElementById('admin-display-area');
+        const monthYear = document.getElementById('admin-date').value.substring(0, 7);
+        area.innerHTML = `<div style="padding:15px;background:white;border-radius:10px;"><h3>Monthly Summary: ${monthYear}</h3><button onclick="window.print()" style="width:100%;padding:10px;background:#4caf50;color:white;border:none;border-radius:5px;margin-bottom:15px;">Download PDF</button><table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:#eee;"><th style="border:1px solid #ddd;padding:8px;">Name</th><th style="border:1px solid #ddd;padding:8px;">Days</th><th style="border:1px solid #ddd;padding:8px;">Avg Score</th></tr></thead><tbody id="report-body"></tbody></table></div>`;
+        db.ref('attendance').once('value', attSnap => {
+            db.ref('quizzes').once('value', quizSnap => {
+                const stats = {};
+                attSnap.forEach(dSnap => { if(dSnap.key.startsWith(monthYear)) dSnap.forEach(sSnap => { const n = sSnap.val().name; if(!stats[n]) stats[n]={d:0,s:0,c:0}; stats[n].d++; })});
+                quizSnap.forEach(dSnap => { if(dSnap.key.startsWith(monthYear)) dSnap.forEach(sSnap => { const n = sSnap.key; if(stats[n]) { stats[n].s += sSnap.val().score; stats[n].c++; }})});
+                const tbody = document.getElementById('report-body');
+                for(let n in stats) { const avg = stats[n].c > 0 ? (stats[n].s/stats[n].c).toFixed(1) : 0; tbody.innerHTML += `<tr><td style="border:1px solid #ddd;padding:8px;">${n}</td><td style="border:1px solid #ddd;padding:8px;text-align:center;">${stats[n].d}</td><td style="border:1px solid #ddd;padding:8px;text-align:center;">${avg}</td></tr>`; }
+            });
+        });
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; document.getElementById('admin-install-btn').style.display='block'; document.getElementById('std-install-btn').style.display='block'; });
+    async function installPortalApp() { if(deferredPrompt) { deferredPrompt.prompt(); const { outcome } = await deferredPrompt.userChoice; if(outcome === 'accepted') deferredPrompt = null; } else alert("Add to Home Screen manually via Chrome Menu."); }
+    async function checkAndStartChat() { const fId = document.getElementById('p2p-friend-id').value.trim(); if(!fId || fId === user.id) return alert("Invalid ID"); const s = await db.ref(`student_credentials/${fId}`).once('value'); if(s.exists()) { activeP2PUser = fId; document.getElementById('p2p-chat-box').style.display = 'flex'; document.getElementById('p2p-info').innerText = "Chatting with: " + s.val().name; loadChatMessages(`p2p_chats/${[user.id, fId].sort().join("_")}`, 'p2p-msg-area', user.name); } else alert("ID not found"); }
+    function openAdminChat(sid) { activeChatID = sid; isGroupMode = false; document.getElementById('admin-reply-box').style.display = 'flex'; loadChatMessages(`personal_chats/${sid}`, 'admin-display-area', "SIR"); }
+    function sendAdminReply() { const m = document.getElementById('admin-msg-input').value.trim(); if(m) { const p = isGroupMode ? 'group_chats' : `personal_chats/${activeChatID}`; db.ref(p).push({ sender: "SIR", msg: m }); document.getElementById('admin-msg-input').value = ""; } }
+    function sendStdPersonalChat() { const m = document.getElementById('std-msg-in').value.trim(); if(m) { db.ref(`personal_chats/${user.id}`).push({ sender: user.name, msg: m }); document.getElementById('std-msg-in').value = ""; } }
+    function sendStdGroupChat() { const m = document.getElementById('std-group-msg-in').value.trim(); if(m) { db.ref('group_chats').push({ sender: user.name, msg: m }); document.getElementById('std-group-msg-in').value = ""; } }
+    function sendP2P() { const m = document.getElementById('p2p-msg-input').value.trim(); if(m) { db.ref(`p2p_chats/${[user.id, activeP2PUser].sort().join("_")}`).push({ sender: user.name, msg: m }); document.getElementById('p2p-msg-input').value = ""; } }
+    function logout() { localStorage.clear(); location.reload(); }
+    function toggleSidebar(id) { document.getElementById(id).classList.toggle('hidden'); }
+    function toggleAuth(is) { document.getElementById('login-form').style.display = is ? 'none' : 'block'; document.getElementById('register-form').style.display = is ? 'block' : 'none'; }
+    function previewProfile(i) { if(i.files[0]) { const r = new FileReader(); r.onload=(e)=>document.getElementById('reg-preview').src=e.target.result; r.readAsDataURL(i.files[0]); } }
+    function trackOnline() { let p = db.ref('status/online_students').push(); p.onDisconnect().remove(); p.set({ name: user.name }); }
+    function trackStats() { db.ref('student_credentials').on('value', s => document.getElementById('total-ids').innerText = s.numChildren()); db.ref(`attendance/${today}`).on('value', s => document.getElementById('present-count').innerText = s.numChildren()); db.ref('status/online_students').on('value', s => document.getElementById('online-count').innerText = s.numChildren()); }
+
+    // --- PWA SERVICE WORKER REGISTRATION ---
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').then(reg => {
+          console.log('Service Worker Registered!', reg);
+        }).catch(err => {
+          console.log('Registration Failed!', err);
+        });
+      });
+    }
+</script>
+</body>
+</html>
