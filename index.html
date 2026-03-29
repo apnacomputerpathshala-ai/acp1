@@ -68,6 +68,13 @@
     </style>
 </head>
 <body>
+<div id="video-container" style="display:none; position:fixed; inset:0; background:black; z-index:20000; flex-direction:column;">
+    <div style="background:var(--primary); padding:10px; display:flex; justify-content:space-between; align-items:center; color:white; font-weight:bold;">
+        <span><i class="fas fa-video"></i> ACP Live Class</span>
+        <button onclick="closeVideoCall()" style="background:#ff5252; color:white; border:none; padding:8px 15px; border-radius:5px; cursor:pointer;">End Call</button>
+    </div>
+    <div id="jitsi-iframe-area" style="flex:1; width:100%; height:100%;"></div>
+</div>
 <div id="custom-toast" class="toast-notification">
     <div class="toast-icon"><i class="fas fa-comment-dots"></i></div>
     <div class="toast-content">
@@ -246,7 +253,10 @@ if (window.Notification && Notification.permission !== "granted") {
     const ps = document.getElementById('reg-pass').value.trim();
     const fl = document.getElementById('reg-photo').files[0];
 
-    if(!n || !id || !ps) { alert("सभी जानकारी भरें!"); return; }
+    if(!n || !id || !ps) { 
+        alert("सभी जानकारी भरें!"); 
+        return; 
+    }
 
     // चेक करें कि ID पहले से तो नहीं है
     const checkId = await db.ref(`student_credentials/${id}`).once('value');
@@ -256,11 +266,13 @@ if (window.Notification && Notification.permission !== "granted") {
     }
 
     const save = (img) => db.ref(`student_credentials/${id}`).set({ 
-        name: n, pass: ps, photo: img 
+        name: n, 
+        pass: ps, 
+        photo: img 
     }).then(() => { 
         speak(`बधाई हो ${n}`); 
         alert("रजिस्ट्रेशन सफल!"); 
-        toggleAuth(false); 
+        toggleAuth(false); // वापस लॉगिन पेज पर जाने के लिए
     });
 
     if(fl) { 
@@ -268,10 +280,38 @@ if (window.Notification && Notification.permission !== "granted") {
         r.onloadend = () => save(r.result); 
         r.readAsDataURL(fl); 
     } else {
-        save("");
+       
+        save("https://cdn-icons-png.flaticon.com/512/3135/3135715.png");
     }
 }
+function startVideoCall(mode) {
+    const roomName = (mode === 'admin') ? (isGroupMode ? 'GlobalGroup' : activeChatID) : user.id;
+    if(!roomName) return alert("कृपया पहले छात्र का चैट चुनें!");
 
+    // Jitsi Meet URL (उसी पेज पर खोलने के लिए)
+    const callUrl = `https://meet.jit.si/ACP_Portal_${roomName}#config.prejoinPageEnabled=false&interfaceConfig.MOBILE_APP_PROMO=false`;
+
+    const container = document.getElementById('video-container');
+    const iframeArea = document.getElementById('jitsi-iframe-area');
+    
+    container.style.display = 'flex';
+    iframeArea.innerHTML = `<iframe src="${callUrl}" allow="camera; microphone; fullscreen; display-capture; autoplay" style="width:100%; height:100%; border:none;"></iframe>`;
+
+    // चैट में सूचना भेजें
+    const path = (mode === 'admin') ? (isGroupMode ? 'group_chats' : `personal_chats/${activeChatID}`) : `personal_chats/${user.id}`;
+    db.ref(path).push({ 
+        sender: (mode === 'admin' ? "SIR" : user.name), 
+        msg: "🎥 वीडियो कॉल शुरू हो गई है। इसी बटन पर क्लिक करके जुड़ें।", 
+        timestamp: Date.now() 
+    });
+}
+
+function closeVideoCall() {
+    if(confirm("क्या आप वीडियो कॉल बंद करना चाहते हैं?")) {
+        document.getElementById('video-container').style.display = 'none';
+        document.getElementById('jitsi-iframe-area').innerHTML = ''; // कैमरा बंद करने के लिए ज़रूरी
+    }
+}
     function openAdmin() { document.getElementById('auth-overlay').style.display='none'; document.getElementById('admin-main').style.display='flex'; document.getElementById('admin-date').value=today; loadAdminData(); trackStats(); }
     function openStudent() { document.getElementById('auth-overlay').style.display='none'; document.getElementById('student-main').style.display='flex'; document.getElementById('std-p-img').src=user.photo||''; document.getElementById('std-name-side').innerText=user.name; stdSwitch('chat', document.querySelector('.menu-item')); trackOnline(); }
 
@@ -511,7 +551,6 @@ if (window.Notification && Notification.permission !== "granted") {
     function previewProfile(i) { if(i.files[0]) { const r = new FileReader(); r.onload=(e)=>document.getElementById('reg-preview').src=e.target.result; r.readAsDataURL(i.files[0]); } }
     function trackOnline() { let p = db.ref('status/online_students').push(); p.onDisconnect().remove(); p.set({ name: user.name }); }
     function trackStats() { db.ref('student_credentials').on('value', s => document.getElementById('total-ids').innerText = s.numChildren()); db.ref(`attendance/${today}`).on('value', s => document.getElementById('present-count').innerText = s.numChildren()); db.ref('status/online_students').on('value', s => document.getElementById('online-count').innerText = s.numChildren()); }
-
     // --- PWA SERVICE WORKER REGISTRATION ---
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
