@@ -42,9 +42,39 @@
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
         
         @media (max-width: 768px) { .sidebar { position: fixed; left: 0; top: 0; height: 100%; } .sidebar.hidden { left: -260px; } }
+
+.toast-notification {
+    position: fixed;
+    top: -100px; 
+    left: 50%;
+    transform: translateX(-50%); 
+    width: 90%;
+    max-width: 400px;
+    background: white;
+    padding: 15px;
+    border-radius: 0 0 15px 15px; 
+    box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    z-index: 10002;
+    transition: top 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border-bottom: 4px solid #2979ff;
+}
+
+.toast-notification.show { 
+    top: 0; 
+}
     </style>
 </head>
 <body>
+<div id="custom-toast" class="toast-notification">
+    <div class="toast-icon"><i class="fas fa-comment-dots"></i></div>
+    <div class="toast-content">
+        <b id="toast-sender">New Message</b>
+        <span id="toast-msg">Loading...</span>
+    </div>
+</div>
     <div id="img-modal" onclick="this.style.display='none'"><img id="modal-target" src=""></div>
 
     <div id="auth-overlay" style="position: fixed; inset: 0; background: #1a237e; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white;">
@@ -92,6 +122,7 @@
                 <input type="file" id="admin-file" style="display:none;" accept="image/*,application/pdf,video/*" onchange="sendPhoto('admin')">
                 <button onclick="document.getElementById('admin-file').click()" style="color:var(--accent); font-size:1.4rem; background:none; border:none;"><i class="fas fa-camera"></i></button>
                 <button id="voice-btn-admin" onclick="toggleVoiceRecord('admin')" style="background:none; border:none; color:var(--accent); font-size:1.4rem;"><i class="fas fa-microphone"></i></button>
+<button onclick="startVideoCall('admin')" style="background:none; border:none; color:var(--accent); font-size:1.4rem;"><i class="fas fa-video"></i></button>
                 <input type="text" id="admin-msg-input" placeholder="Reply...">
                 <button onclick="sendAdminReply()" style="background:var(--primary); color:white; border:none; width:45px; height:45px; border-radius:50%;"><i class="fas fa-paper-plane"></i></button>
             </div>
@@ -119,6 +150,7 @@
                     <input type="file" id="std-file" style="display:none;" accept="image/*,application/pdf,video/*" onchange="sendPhoto('personal')">
                     <button onclick="document.getElementById('std-file').click()" style="color:var(--accent); font-size:1.4rem; background:none; border:none;"><i class="fas fa-camera"></i></button>
                     <button id="voice-btn-std" onclick="toggleVoiceRecord('personal')" style="background:none; border:none; color:var(--accent); font-size:1.4rem;"><i class="fas fa-microphone"></i></button>
+<button onclick="startVideoCall('personal')" style="background:none; border:none; color:var(--accent); font-size:1.4rem;"><i class="fas fa-video"></i></button>
                     <input type="text" id="std-msg-in" placeholder="Ask doubt...">
                     <button onclick="sendStdPersonalChat()" style="background:var(--primary); color:white; border:none; width:45px; height:45px; border-radius:50%;"><i class="fas fa-paper-plane"></i></button>
                 </div>
@@ -152,6 +184,35 @@
     let user = null; let currentMode = 'quizzes'; let activeChatID = ""; let activeP2PUser = ""; let isGroupMode = false; let lastMsgCount = 0;
     let mediaRecorder; let audioChunks = []; let deferredPrompt;
 
+function showNotification(sender, message) {
+   
+    msgSound.play().catch(e => console.log("Sound error"));
+
+    
+    const toast = document.getElementById('custom-toast');
+    document.getElementById('toast-sender').innerText = sender;
+    document.getElementById('toast-msg').innerText = message.length > 35 ? message.substring(0, 35) + "..." : message;
+
+    
+    toast.classList.add('show');
+
+    
+    setTimeout(() => { toast.classList.remove('show'); }, 4000);
+
+    
+    if (document.hidden && Notification.permission === "granted") {
+        new Notification("Apna Computer Pathshala", {
+            body: sender + ": " + message,
+            icon: "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+        });
+    }
+}
+
+
+if (window.Notification && Notification.permission !== "granted") {
+    Notification.requestPermission();
+}
+
     function speak(t) { const m = new SpeechSynthesisUtterance(); m.text = t; m.lang = 'hi-IN'; window.speechSynthesis.speak(m); }
     window.onload = () => { const sessionUser = localStorage.getItem('sessionUser'); const sessionRole = localStorage.getItem('sessionRole'); if(sessionUser && sessionRole) { if(sessionRole === 'admin') openAdmin(); else { user = JSON.parse(sessionUser); openStudent(); } } };
     
@@ -179,10 +240,37 @@
         }
     }
 
-    function processRegister() {
-        const n = document.getElementById('reg-name').value.trim().toUpperCase(); const id = document.getElementById('reg-id').value.trim(); const ps = document.getElementById('reg-pass').value.trim(); const fl = document.getElementById('reg-photo').files[0];
-        if(n && id && ps) { const save = (img) => db.ref(`student_credentials/${id}`).set({ name: n, pass: ps, photo: img }).then(() => { speak(`बधाई हो ${n}`); alert("Success!"); toggleAuth(false); }); if(fl) { const r = new FileReader(); r.onloadend = () => save(r.result); r.readAsDataURL(fl); } else save(""); }
+    async function processRegister() {
+    const n = document.getElementById('reg-name').value.trim().toUpperCase();
+    const id = document.getElementById('reg-id').value.trim();
+    const ps = document.getElementById('reg-pass').value.trim();
+    const fl = document.getElementById('reg-photo').files[0];
+
+    if(!n || !id || !ps) { alert("सभी जानकारी भरें!"); return; }
+
+    // चेक करें कि ID पहले से तो नहीं है
+    const checkId = await db.ref(`student_credentials/${id}`).once('value');
+    if(checkId.exists()) {
+        alert("यह ID पहले से मौजूद है! कृपया दूसरी ID चुनें।");
+        return;
     }
+
+    const save = (img) => db.ref(`student_credentials/${id}`).set({ 
+        name: n, pass: ps, photo: img 
+    }).then(() => { 
+        speak(`बधाई हो ${n}`); 
+        alert("रजिस्ट्रेशन सफल!"); 
+        toggleAuth(false); 
+    });
+
+    if(fl) { 
+        const r = new FileReader(); 
+        r.onloadend = () => save(r.result); 
+        r.readAsDataURL(fl); 
+    } else {
+        save("");
+    }
+}
 
     function openAdmin() { document.getElementById('auth-overlay').style.display='none'; document.getElementById('admin-main').style.display='flex'; document.getElementById('admin-date').value=today; loadAdminData(); trackStats(); }
     function openStudent() { document.getElementById('auth-overlay').style.display='none'; document.getElementById('student-main').style.display='flex'; document.getElementById('std-p-img').src=user.photo||''; document.getElementById('std-name-side').innerText=user.name; stdSwitch('chat', document.querySelector('.menu-item')); trackOnline(); }
@@ -256,6 +344,18 @@
     function loadChatMessages(path, areaId, myName) {
         const area = document.getElementById(areaId); const isGlobal = path.includes('group_chats'); const isAdmin = (localStorage.getItem('sessionRole') === 'admin');
         db.ref(path).off();
+
+    // केवल नए आने वाले मैसेज के लिए नोटिफिकेशन
+    db.ref(path).limitToLast(1).on('child_added', (snapshot) => {
+        const data = snapshot.val();
+        const myName = (localStorage.getItem('sessionRole') === 'admin') ? "SIR" : user?.name;
+        
+        // पेज लोड होने के समय पुराने मैसेज को छोड़ने के लिए टाइमस्टैम्प चेक (वैकल्पिक)
+        if (data.sender !== myName) {
+            let msgText = data.type === 'file' ? "📎 फाइल भेजी गई है" : data.msg;
+            showNotification(data.sender, msgText);
+        }
+    });
         db.ref(path).on('value', snap => {
             if(snap.numChildren() > lastMsgCount) msgSound.play().catch(e=>{});
             lastMsgCount = snap.numChildren();
