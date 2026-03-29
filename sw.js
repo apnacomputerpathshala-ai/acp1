@@ -1,11 +1,15 @@
 const CACHE_NAME = 'acp-portal-v1';
 const assets = [
+  './',
   './index.html',
   './manifest.json',
-  './logo-.jpg'
+  './logo-.jpg',
+  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css',
+  'https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js',
+  'https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js'
 ];
 
-// 1. Install Event: फाइलों को कैश में सेव करना
+// 1. Install Event (यह आपके कोड में गायब था)
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -14,7 +18,7 @@ self.addEventListener('install', (e) => {
   );
 });
 
-// 2. Activate Event: पुराने और बेकार कैश को डिलीट करना (यहाँ जोड़ा गया है)
+// 2. Activate Event: पुराने कैश को डिलीट करना
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keyList) => {
