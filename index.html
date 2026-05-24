@@ -6,13 +6,19 @@
     <title>Apna Computer Pathshala</title>
     <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
     <script>
-      window.OneSignalDeferred = window.OneSignalDeferred || [];
-      OneSignalDeferred.push(async function(OneSignal) {
-        await OneSignal.init({
-          appId: "ac69211a-fb81-457c-961a-d1a43a138eb4",
-        });
-      });
-    </script>
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  OneSignalDeferred.push(async function(OneSignal) {
+    await OneSignal.init({
+      appId: "ac69211a-fb81-457c-961a-d1a43a138eb4",
+      notifyButton: {
+        enable: true, // स्क्रीन के कोने में एक छोटी सी घंटी दिखेगी जिससे यूजर सब्सक्राइब कर सकेंगे
+      }
+    });
+    // ऐप खुलते ही यूजर से पुश नोटिफिकेशन की परमिशन मांगेगा
+    OneSignal.Slidedown.promptPush(); 
+  });
+</script>
+
     <link rel="manifest" href="manifest.json">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -243,7 +249,7 @@ let activeChatID = '';
 let activeP2PUser = '';
 let today = new Date().toISOString().split('T')[0];
 // यहाँ नीचे वाली लाइन जोड़ें:
-const APP_VERSION = "1.1"; // <--- जब भी नया अपडेट डालें, इसे 1.1, 1.2 कर दें
+const APP_VERSION = "1.2"; // <--- जब भी नया अपडेट डालें, इसे 1.1, 1.2 कर दें
 
 let mediaRecorder; 
 let audioChunks = [];
