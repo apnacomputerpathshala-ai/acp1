@@ -1,15 +1,14 @@
-const CACHE_NAME = 'acp-portal-v1';
+const CACHE_NAME = 'acp-portal-v2';
 const assets = [
   './',
   './index.html',
   './manifest.json',
   './logo-.jpg',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css',
-  'https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js',
-  'https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js'
+  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'
 ];
 
-// 1. Install Event (यह आपके कोड में गायब था)
+// 1. Install Event 
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -18,7 +17,7 @@ self.addEventListener('install', (e) => {
   );
 });
 
-// 2. Activate Event: पुराने कैश को डिलीट करना
+// 2. Activate Event
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keyList) => {
@@ -31,7 +30,7 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// 3. Fetch Event: ऑफलाइन सपोर्ट के लिए
+// 3. Fetch Event
 self.addEventListener('fetch', (e) => {
   e.respondWith(
     caches.match(e.request).then((response) => {
