@@ -243,7 +243,7 @@ let activeChatID = '';
 let activeP2PUser = '';
 let today = new Date().toISOString().split('T')[0];
 // यहाँ नीचे वाली लाइन जोड़ें:
-const APP_VERSION = "1.0"; // <--- जब भी नया अपडेट डालें, इसे 1.1, 1.2 कर दें
+const APP_VERSION = "1.1"; // <--- जब भी नया अपडेट डालें, इसे 1.1, 1.2 कर दें
 
 let mediaRecorder; 
 let audioChunks = [];
@@ -409,49 +409,28 @@ async function processRegister() {
         const fl = document.getElementById('reg-photo').files[0];
         
         if(!n || !email || !ps) { alert("सभी जानकारी भरें!"); return; }
-
-        // सीधे डेटाबेस टेबल में सेव करना (बिना फालतू वेरिफिकेशन के)
-        const saveToSupabase = async (photoData) => {
-            const { error } = await sb.from('student_credentials').insert([{ id: email, name: n, pass: ps, photo: photoData }]);
-            if(error) alert("रजिस्ट्रेशन में समस्या आई: " + error.message);
-            else { speak(`बधाई हो ${n}`); alert("रजिस्ट्रेशन सफल! अब आप लॉगिन कर सकते हैं।"); toggleAuth(false); }
-        };
-        
-        if(fl) { const r = new FileReader(); r.onloadend = () => saveToSupabase(r.result); r.readAsDataURL(fl); } 
-        else saveToSupabase("https://cdn-icons-png.flaticon.com/512/3135/3135715.png");
-        
-    } catch (e) {
-        alert("रजिस्ट्रेशन एरर: " + e.message);
-    }
-}
-
-async function processRegister() {
-    try {
-        const n = document.getElementById('reg-name').value.trim().toUpperCase();
-        const email = document.getElementById('reg-id').value.trim();
-        const ps = document.getElementById('reg-pass').value.trim();
-        const fl = document.getElementById('reg-photo').files[0];
-        
-        if(!n || !email || !ps) { alert("सभी जानकारी भरें!"); return; }
         if(ps.length < 6) { alert("पासवर्ड कम से कम 6 अक्षरों का होना चाहिए!"); return; }
 
-        // 1. Supabase Auth में यूज़र क्रिएट करना
-        const { data: authData, error: authErr } = await sb.auth.signUp({
-            email: email,
-            password: ps
-        });
-
-        if (authErr) throw authErr;
-
-        // 2. ऑथेंटिकेशन सफल होने पर डेटाबेस में डिटेल्स सेव करना
+        // सीधे डेटाबेस टेबल में सेव करना (जैसा आपका लॉगिन काम कर रहा है)
         const saveToSupabase = async (photoData) => {
             const { error } = await sb.from('student_credentials').insert([{ id: email, name: n, pass: ps, photo: photoData }]);
-            if(error) alert("रजिस्ट्रेशन में समस्या आई: " + error.message);
-            else { speak(`बधाई हो ${n}`); alert("रजिस्ट्रेशन सफल! अब आप लॉगिन कर सकते हैं।"); toggleAuth(false); }
+            
+            if(error) {
+                alert("रजिस्ट्रेशन में समस्या आई: " + error.message);
+            } else { 
+                speak(`बधाई हो ${n}`); 
+                alert("रजिस्ट्रेशन सफल! अब आप लॉगिन कर सकते हैं।"); 
+                toggleAuth(false); 
+            }
         };
         
-        if(fl) { const r = new FileReader(); r.onloadend = () => saveToSupabase(r.result); r.readAsDataURL(fl); } 
-        else saveToSupabase("https://cdn-icons-png.flaticon.com/512/3135/3135715.png");
+        if(fl) { 
+            const r = new FileReader(); 
+            r.onloadend = () => saveToSupabase(r.result); 
+            r.readAsDataURL(fl); 
+        } else {
+            saveToSupabase("https://cdn-icons-png.flaticon.com/512/3135/3135715.png");
+        }
         
     } catch (e) {
         alert("रजिस्ट्रेशन एरर: " + e.message);
