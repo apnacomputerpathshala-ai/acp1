@@ -1,4 +1,5 @@
-const CACHE_NAME = 'acp-portal-v2';
+const CACHE_NAME = 'acp-portal-v3';
+
 const assets = [
   './',
   './index.html',
