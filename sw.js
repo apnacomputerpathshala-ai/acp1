@@ -1,4 +1,4 @@
-const CACHE_NAME = 'acp-portal-v7';
+const CACHE_NAME = 'acp-portal-v8';
 
 const assets = [
   './',
