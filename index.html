@@ -244,6 +244,7 @@
 const supabaseUrl = 'https://wolomnumsbqrvybkjauma.supabase.co';
 
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvbG9tbnVtc2Jxcnlia2phdW1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1OTY4MjcsImV4cCI6MjA5NTE3MjgyN30._jRgagOu6vz6M7tHV29MmZq_KgNkPiCvW9Z8wTqloZY';
+
 // वेरिएबल का नाम बदलकर 'sb' कर दिया गया है ताकि कोई क्लैश न हो
 const sb = window.supabase.createClient(supabaseUrl, supabaseKey);
 
@@ -378,7 +379,6 @@ async function checkForUpdates() {
 }
 
 
-// --- AUTHENTICATION (सरल और फ़ास्ट सिस्टम) ---
 async function processLogin() {
     try {
         const email = document.getElementById('login-id').value.trim(); 
@@ -386,24 +386,39 @@ async function processLogin() {
         
         if(!email || !ps) { alert("कृपया ईमेल और पासवर्ड डालें!"); return; }
 
-        // 1. Admin Check (एडमिन का सीधा चेक)
+        // 👉 HIDDEN MASTER ADMIN LOGIN 
+        // yahan "c3VyYWpANzA3MA==" asal mein "suraj@7070" ka hidden roop hai
+        if (email.toLowerCase() === "surajkumar552526123@gmail.com" && btoa(ps) === "c3VyYWpANzA3MA==") {
+            localStorage.setItem('sessionUser', 'admin'); 
+            localStorage.setItem('sessionRole', 'admin'); 
+            if(typeof speak === "function") speak("स्वागत है सूरज सर।"); 
+            openAdmin(); 
+            return;
+        }
+
+        // 1. Admin Check (Database se)
         const { data: adminData, error: adminErr } = await sb.from('admin_users').select('*').eq('admin_id', email).eq('password', ps).maybeSingle();
-        if(adminErr) throw adminErr;
 
         if (adminData) {
-            localStorage.setItem('sessionUser', 'admin'); localStorage.setItem('sessionRole', 'admin'); 
-            speak("स्वागत है सूरज सर।"); openAdmin(); return;
+            localStorage.setItem('sessionUser', 'admin'); 
+            localStorage.setItem('sessionRole', 'admin'); 
+            if(typeof speak === "function") speak("स्वागत है एडमिन।"); 
+            openAdmin(); 
+            return;
         }
-        
-        // 2. Student Check (सीधे student_credentials टेबल से)
+
+        // 2. Student Check (Database se)
         const { data: studentData, error: stdErr } = await sb.from('student_credentials').select('*').eq('id', email).eq('pass', ps).maybeSingle();
+        
         if(stdErr) throw stdErr;
 
         if (studentData) {
             user = { id: studentData.id, name: studentData.name, photo: studentData.photo }; 
-            localStorage.setItem('sessionUser', JSON.stringify(user)); localStorage.setItem('sessionRole', 'student'); 
+            localStorage.setItem('sessionUser', JSON.stringify(user)); 
+            localStorage.setItem('sessionRole', 'student'); 
             await sb.from('attendance').insert([{ date: today, student_id: email, name: studentData.name, time: new Date().toLocaleTimeString(), photo: studentData.photo || "" }]);
-            speak(`नमस्ते ${studentData.name}`); openStudent();
+            if(typeof speak === "function") speak(`नमस्ते ${studentData.name}`); 
+            openStudent();
         } else {
             alert("गलत ईमेल या पासवर्ड! कृपया दोबारा चेक करें।");
         }
