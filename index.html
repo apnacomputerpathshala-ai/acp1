@@ -24,8 +24,12 @@
 
     <meta name="mobile-web-app-capable" content="yes">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <script src="https://unpkg.com/@zegocloud/zego-uikit-prebuilt/zego-uikit-prebuilt.js"></script>
+    
     <style>
         :root { --primary: #1a237e; --accent: #2979ff; --bg: #f0f4f8; }
+
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; overflow: hidden; height: 100dvh; width: 100vw; display: flex; flex-direction: column; }
         #admin-main, #student-main { display: none; flex: 1; width: 100vw; overflow: hidden; position: relative; }
         .sidebar { width: 260px; background: var(--primary); color: white; display: flex; flex-direction: column; transition: 0.3s; position: relative; z-index: 1000; height: 100%; }
@@ -117,6 +121,8 @@
                 <i class="fas fa-times" style="cursor:pointer; font-size:20px; color:#777;" onclick="document.getElementById('settings-modal').style.display='none'"></i>
             </div>
             <button onclick="checkForUpdates()" style="width:100%; padding:12px; border:1px solid var(--accent); color:var(--accent); background:#e3f2fd; border-radius:8px; cursor:pointer; font-weight:bold; margin-bottom:15px;"><i class="fas fa-sync-alt"></i> Check For Updates</button>
+            <button onclick="changePassword()" style="width:100%; padding:12px; border:1px solid #4caf50; color:#4caf50; background:#e8f5e9; border-radius:8px; cursor:pointer; font-weight:bold; margin-bottom:15px;"><i class="fas fa-key"></i> Change Password</button>
+
             <p style="text-align:center; margin:10px 0 0; font-size:12px; color:#888; font-weight:bold; border-top: 1px solid #eee; padding-top: 10px;">App Version: <span id="app-version-text" style="color:var(--accent);">1.0</span></p>
         </div>
     </div>
@@ -249,7 +255,7 @@ let activeChatID = '';
 let activeP2PUser = '';
 let today = new Date().toISOString().split('T')[0];
 // यहाँ नीचे वाली लाइन जोड़ें:
-const APP_VERSION = "1.2"; // <--- जब भी नया अपडेट डालें, इसे 1.1, 1.2 कर दें
+const APP_VERSION = "1.3"; // <--- जब भी नया अपडेट डालें, इसे 1.1, 1.2 कर दें
 
 let mediaRecorder; 
 let audioChunks = [];
@@ -407,6 +413,7 @@ async function processLogin() {
     }
 }
 
+// --- नया रजिस्ट्रेशन फंक्शन (Storage में फोटो अपलोड के साथ) ---
 async function processRegister() {
     try {
         const n = document.getElementById('reg-name').value.trim().toUpperCase();
@@ -417,29 +424,61 @@ async function processRegister() {
         if(!n || !email || !ps) { alert("सभी जानकारी भरें!"); return; }
         if(ps.length < 6) { alert("पासवर्ड कम से कम 6 अक्षरों का होना चाहिए!"); return; }
 
-        // सीधे डेटाबेस टेबल में सेव करना (जैसा आपका लॉगिन काम कर रहा है)
-        const saveToSupabase = async (photoData) => {
-            const { error } = await sb.from('student_credentials').insert([{ id: email, name: n, pass: ps, photo: photoData }]);
-            
-            if(error) {
-                alert("रजिस्ट्रेशन में समस्या आई: " + error.message);
-            } else { 
-                speak(`बधाई हो ${n}`); 
-                alert("रजिस्ट्रेशन सफल! अब आप लॉगिन कर सकते हैं।"); 
-                toggleAuth(false); 
-            }
-        };
-        
-        if(fl) { 
-            const r = new FileReader(); 
-            r.onloadend = () => saveToSupabase(r.result); 
-            r.readAsDataURL(fl); 
-        } else {
-            saveToSupabase("https://cdn-icons-png.flaticon.com/512/3135/3135715.png");
+        if (fl && fl.size > 2 * 1024 * 1024) { 
+            alert("फोटो का साइज़ 2MB से कम होना चाहिए!"); 
+            return; 
         }
+
+        document.getElementById('reg-name').value = "कृपया प्रतीक्षा करें..."; 
+        let photoUrl = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"; // डिफ़ॉल्ट फोटो
+
+        // 1. फोटो को Supabase Storage में अपलोड करना
+        if(fl) { 
+            const fileName = `student_${Date.now()}_${fl.name}`;
+            const { data: uploadData, error: uploadError } = await sb.storage.from('profile_photos').upload(fileName, fl);
+            
+            if (uploadError) throw uploadError;
+
+            // 2. अपलोड हुई फोटो का पब्लिक URL लेना
+            const { data: publicUrlData } = sb.storage.from('profile_photos').getPublicUrl(fileName);
+            photoUrl = publicUrlData.publicUrl;
+        }
+        
+        // 3. डेटाबेस में रिकॉर्ड सेव करना
+        const { error } = await sb.from('student_credentials').insert([{ id: email, name: n, pass: ps, photo: photoUrl }]);
+        
+        if(error) {
+            // अगर ईमेल पहले से है
+            if(error.code === '23505') alert("यह ईमेल पहले से रजिस्टर है। कृपया दूसरा ईमेल इस्तेमाल करें या लॉगिन करें।");
+            else alert("रजिस्ट्रेशन में समस्या आई: " + error.message);
+        } else { 
+            speak(`बधाई हो ${n}`); 
+            alert("रजिस्ट्रेशन सफल! अब आप लॉगिन कर सकते हैं।"); 
+            toggleAuth(false); 
+        }
+        document.getElementById('reg-name').value = n; // नाम वापस ठीक करना
         
     } catch (e) {
         alert("रजिस्ट्रेशन एरर: " + e.message);
+    }
+}
+
+// --- नया पासवर्ड चेंज फंक्शन ---
+async function changePassword() {
+    if(localStorage.getItem('sessionRole') !== 'student') {
+        alert("यह फीचर सिर्फ स्टूडेंट्स के लिए है।"); return;
+    }
+    const newPass = prompt("अपना नया पासवर्ड दर्ज करें (कम से कम 6 अक्षर):");
+    if(newPass && newPass.length >= 6) {
+        const { error } = await sb.from('student_credentials').update({ pass: newPass }).eq('id', user.id);
+        if(error) {
+            alert("पासवर्ड बदलने में समस्या आई: " + error.message);
+        } else {
+            alert("आपका पासवर्ड सफलतापूर्वक बदल गया है! सुरक्षा कारणों से आपको दोबारा लॉगिन करना होगा।");
+            logout();
+        }
+    } else if (newPass) {
+        alert("पासवर्ड बहुत छोटा है!");
     }
 }
 
@@ -507,36 +546,92 @@ async function sendStdPersonalChat() { const m = document.getElementById('std-ms
 async function sendStdGroupChat() { const m = document.getElementById('std-group-msg-in').value.trim(); if(m) { await sb.from('group_chats').insert([{ sender: user.name, msg: m, timestamp: Date.now() }]); document.getElementById('std-group-msg-in').value = ""; } }
 async function sendP2P() { const m = document.getElementById('p2p-msg-input').value.trim(); if(m) { const room = [user.id, activeP2PUser].sort().join("_"); await sb.from('p2p_chats').insert([{ room_id: room, sender: user.name, msg: m, timestamp: Date.now() }]); document.getElementById('p2p-msg-input').value = ""; } }
 
-function sendPhoto(m) {
+// --- नया फाइल सेंड फंक्शन (Storage Upload के साथ) ---
+async function sendPhoto(m) {
     let inputId = (m === 'admin') ? 'admin-file' : (m === 'p2p' ? 'p2p-file' : 'std-file');
-    const file = document.getElementById(inputId).files[0]; if (!file) return;
-    if (file.size > 2 * 1024 * 1024) return alert("File size must be less than 2MB");
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-        let fileType = 'image'; if (file.type.includes('pdf')) fileType = 'pdf'; else if (file.type.includes('video')) fileType = 'video';
-        const msgData = { sender: (m === 'admin') ? "SIR" : user.name, msg: reader.result, type: 'file', file_format: fileType, file_name: file.name, timestamp: Date.now() };
-        if (m === 'admin') { if (isGroupMode) await sb.from('group_chats').insert([msgData]); else { msgData.student_id = activeChatID; await sb.from('personal_chats').insert([msgData]); } } 
-        else if (m === 'p2p') { msgData.room_id = [user.id, activeP2PUser].sort().join("_"); await sb.from('p2p_chats').insert([msgData]); } 
-        else { msgData.student_id = user.id; await sb.from('personal_chats').insert([msgData]); }
+    const file = document.getElementById(inputId).files[0]; 
+    if (!file) return;
+    
+    // चैट में 5MB तक की फाइल एलाऊ कर देते हैं
+    if (file.size > 5 * 1024 * 1024) return alert("फाइल का साइज़ 5MB से कम होना चाहिए!"); 
+
+    let fileType = 'image'; 
+    if (file.type.includes('pdf')) fileType = 'pdf'; 
+    else if (file.type.includes('video')) fileType = 'video';
+
+    showNotification("System", "फाइल अपलोड हो रही है, कृपया प्रतीक्षा करें...");
+
+    try {
+        // फाइल का नाम सेट करना (स्पेस हटाकर)
+        const fileName = `chat_${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+        
+        // Storage में अपलोड
+        const { error: uploadError } = await sb.storage.from('chat_media').upload(fileName, file);
+        if (uploadError) throw uploadError;
+
+        // पब्लिक URL लेना
+        const { data: publicUrlData } = sb.storage.from('chat_media').getPublicUrl(fileName);
+        const fileUrl = publicUrlData.publicUrl;
+
+        const msgData = { sender: (m === 'admin') ? "SIR" : user.name, msg: fileUrl, type: 'file', file_format: fileType, file_name: file.name, timestamp: Date.now() };
+        
+        // डेटाबेस में सिर्फ URL सेव करना
+        if (m === 'admin') { 
+            if (isGroupMode) await sb.from('group_chats').insert([msgData]); 
+            else { msgData.student_id = activeChatID; await sb.from('personal_chats').insert([msgData]); } 
+        } else if (m === 'p2p') { 
+            msgData.room_id = [user.id, activeP2PUser].sort().join("_"); 
+            await sb.from('p2p_chats').insert([msgData]); 
+        } else { 
+            msgData.student_id = user.id; await sb.from('personal_chats').insert([msgData]); 
+        }
         document.getElementById(inputId).value = "";
-    }; reader.readAsDataURL(file);
+    } catch(e) {
+        alert("अपलोड में एरर: " + e.message);
+    }
 }
 
+// --- नया वॉइस रिकॉर्ड फंक्शन (Storage Upload के साथ) ---
 async function toggleVoiceRecord(mode) {
     const btn = document.getElementById(mode === 'admin' ? 'voice-btn-admin' : 'voice-btn-std');
     if (!mediaRecorder || mediaRecorder.state === "inactive") {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); mediaRecorder = new MediaRecorder(stream); audioChunks = [];
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); 
+        mediaRecorder = new MediaRecorder(stream); 
+        audioChunks = [];
         mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-        mediaRecorder.onstop = () => {
-            const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' }); const reader = new FileReader();
-            reader.onloadend = async () => {
-                const msgData = { sender: (mode === 'admin') ? "SIR" : user.name, msg: reader.result, type: 'file', file_format: 'audio', timestamp: Date.now() };
-                if(mode === 'admin') { if(isGroupMode) await sb.from('group_chats').insert([msgData]); else { msgData.student_id = activeChatID; await sb.from('personal_chats').insert([msgData]); } } 
-                else { msgData.student_id = user.id; await sb.from('personal_chats').insert([msgData]); }
-            }; reader.readAsDataURL(audioBlob);
-        }; mediaRecorder.start(); btn.classList.add('recording');
-    } else { mediaRecorder.stop(); btn.classList.remove('recording'); }
+        
+        mediaRecorder.onstop = async () => {
+            showNotification("System", "वॉइस मैसेज भेजा जा रहा है...");
+            const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' }); 
+            
+            try {
+                const fileName = `voice_${Date.now()}.mp3`;
+                const { error: uploadError } = await sb.storage.from('chat_media').upload(fileName, audioBlob);
+                if (uploadError) throw uploadError;
+
+                const { data: publicUrlData } = sb.storage.from('chat_media').getPublicUrl(fileName);
+                const fileUrl = publicUrlData.publicUrl;
+
+                const msgData = { sender: (mode === 'admin') ? "SIR" : user.name, msg: fileUrl, type: 'file', file_format: 'audio', timestamp: Date.now() };
+                
+                if(mode === 'admin') { 
+                    if(isGroupMode) await sb.from('group_chats').insert([msgData]); 
+                    else { msgData.student_id = activeChatID; await sb.from('personal_chats').insert([msgData]); } 
+                } else { 
+                    msgData.student_id = user.id; await sb.from('personal_chats').insert([msgData]); 
+                }
+            } catch(e) {
+                alert("वॉइस सेंड एरर: " + e.message);
+            }
+        }; 
+        mediaRecorder.start(); 
+        btn.classList.add('recording'); 
+    } else { 
+        mediaRecorder.stop(); 
+        btn.classList.remove('recording'); 
+    }
 }
+
 
 async function deleteMsg(table, id) {
     if(confirm("Delete this?")) await sb.from(table).delete().eq('id', id);
@@ -564,15 +659,32 @@ async function loadAdminData() {
 }
 
 async function searchIDs() {
-    const term = document.getElementById('id-search')?.value.toLowerCase() || ""; const list = document.getElementById('ids-list');
-    const { data: students } = await sb.from('student_credentials').select('*');
+    const term = document.getElementById('id-search')?.value.trim().toLowerCase() || ""; 
+    const list = document.getElementById('ids-list');
+    list.innerHTML = "<p style='text-align:center;'>सर्च हो रहा है...</p>";
+    
+    // Supabase .ilike() का इस्तेमाल ताकि सर्वर से ही फिल्टर होकर डेटा आए
+    let query = sb.from('student_credentials').select('*');
+    if (term) {
+        query = query.ilike('name', `%${term}%`); // सिर्फ नाम से सर्च करने के लिए तेज़ होगा
+    }
+    
+    // एक बार में सिर्फ 50 दिखाएं ताकि ऐप हैंग न हो
+    const { data: students, error } = await query.limit(50); 
+    
     list.innerHTML = "";
-    if(students) students.forEach(v => {
-        if(v.id.toLowerCase().includes(term) || v.name.toLowerCase().includes(term)) { 
-            list.innerHTML += `<div class="card-item" style="padding:10px;"><div style="display:flex; align-items:center; gap:10px;"><img src="${v.photo || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'}" style="width:35px; height:35px; border-radius:50%; object-fit:cover;"><div><b style="font-size:14px; color:var(--primary);">${v.name}</b><p style="font-size:11px; margin:2px 0; color:#444;"><strong>ID:</strong> ${v.id} | <strong>Pass:</strong> <span style="color:#d32f2f;">${v.pass}</span></p></div></div><div style="display:flex; gap:15px;"><i class="fas fa-edit" style="color:orange; cursor:pointer;" onclick="editStudent('${v.id}', '${v.name}', '${v.pass}')"></i><i class="fas fa-comments" style="color:var(--accent); cursor:pointer;" onclick="openAdminChat('${v.id}')"></i><i class="fas fa-trash" style="color:#f44336; cursor:pointer;" onclick="deleteMsg('student_credentials', '${v.id}'); searchIDs();"></i></div></div>`;
-        }
-    });
+    if (error) { list.innerHTML = "एरर: " + error.message; return; }
+    
+    if(students && students.length > 0) {
+        students.forEach(v => {
+            // पासवर्ड को UI पर छिपाने के लिए ******** कर दिया गया है
+            list.innerHTML += `<div class="card-item" style="padding:10px;"><div style="display:flex; align-items:center; gap:10px;"><img src="${v.photo || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'}" style="width:35px; height:35px; border-radius:50%; object-fit:cover;"><div><b style="font-size:14px; color:var(--primary);">${v.name}</b><p style="font-size:11px; margin:2px 0; color:#444;"><strong>ID:</strong> ${v.id} | <strong>Pass:</strong> <span style="color:#d32f2f;">********</span></p></div></div><div style="display:flex; gap:15px;"><i class="fas fa-edit" style="color:orange; cursor:pointer;" onclick="editStudent('${v.id}', '${v.name}', '${v.pass}')"></i><i class="fas fa-comments" style="color:var(--accent); cursor:pointer;" onclick="openAdminChat('${v.id}')"></i><i class="fas fa-trash" style="color:#f44336; cursor:pointer;" onclick="deleteMsg('student_credentials', '${v.id}'); searchIDs();"></i></div></div>`;
+        });
+    } else {
+        list.innerHTML = "<p style='text-align:center;'>कोई स्टूडेंट नहीं मिला</p>";
+    }
 }
+
 
 async function loadStudentChatList() {
     const area = document.getElementById('admin-display-area'); area.innerHTML = "<h4>छात्र चुनें और चैट करें</h4>";
@@ -607,20 +719,77 @@ async function checkAndStartChat() {
     if(s) { activeP2PUser = fId; document.getElementById('p2p-chat-box').style.display = 'flex'; document.getElementById('p2p-info').innerText = "Chatting with: " + s.name; loadChatMessages('p2p_chats', 'p2p-msg-area', user.name, 'room_id', [user.id, fId].sort().join("_")); } else alert("ID not found"); 
 }
 
-// --- VIDEO CALL & STATS ---
+// --- VIDEO CALL (ZEGOCLOUD INTEGRATION) & STATS ---
+
+const Z_APP_ID = 1919222775; // आपका App ID (बिना कोट्स के)
+const Z_SERVER_SECRET = "7ffde750ead6f4cb3e389f1dbd8c15b0"; // आपका Server Secret (कोट्स के अंदर)
+
+let zpInstance = null; // ZegoCloud कंट्रोलर
+
 async function startVideoCall(mode) {
     const roomName = (mode === 'admin') ? (isGroupMode ? 'GlobalGroup' : activeChatID) : user.id;
     if(!roomName) return alert("कृपया पहले छात्र का चैट चुनें!");
+    
+    // ZegoCloud के लिए यूज़र डिटेल्स (स्पेस हटाकर)
+    const myName = (mode === 'admin') ? "ACP Admin" : user.name;
+    const myUserID = (mode === 'admin') ? "admin_sir" : user.id.replace(/[^a-zA-Z0-9]/g, '_');
+
     document.getElementById('video-container').style.display = 'flex';
-    document.getElementById('jitsi-iframe-area').innerHTML = `<iframe src="https://meet.jit.si/ACP_Portal_${roomName}#config.prejoinPageEnabled=false" allow="camera; microphone; fullscreen; autoplay" style="width:100%; height:100%; border:none;"></iframe>`;
-    const msgData = { sender: mode === 'admin' ? "SIR" : user.name, msg: "🎥 वीडियो कॉल शुरू हो गई है।", timestamp: Date.now() };
-    if(mode === 'admin') { if(isGroupMode) await sb.from('group_chats').insert([msgData]); else { msgData.student_id = activeChatID; await sb.from('personal_chats').insert([msgData]); } } else { msgData.student_id = user.id; await sb.from('personal_chats').insert([msgData]); }
+    const container = document.getElementById('jitsi-iframe-area');
+    container.innerHTML = ''; // पुराना डेटा साफ करें
+
+    try {
+        // ZegoCloud Token बनाना
+        const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
+            Z_APP_ID, 
+            Z_SERVER_SECRET, 
+            roomName, 
+            myUserID, 
+            myName
+        );
+
+        // ZegoCloud शुरू करना
+        zpInstance = ZegoUIKitPrebuilt.create(kitToken);
+        zpInstance.joinRoom({
+            container: container,
+            scenario: {
+                mode: isGroupMode ? ZegoUIKitPrebuilt.GroupCall : ZegoUIKitPrebuilt.OneONoneCall,
+            },
+            showScreenSharingButton: true, // स्क्रीन शेयर करने का ऑप्शन
+            showPreJoinView: false, // सीधे मीटिंग में जाने के लिए
+            onLeaveRoom: () => {
+                closeVideoCall(); // जब लाल बटन से कॉल कटे तो स्क्रीन छिप जाए
+            }
+        });
+
+        // चैट में मैसेज भेजना कि "कॉल शुरू हो गई है"
+        const msgData = { sender: mode === 'admin' ? "SIR" : user.name, msg: "🎥 लाइव वीडियो क्लास / डाउट कॉल शुरू हो गई है। तुरंत ज्वाइन करें!", timestamp: Date.now() };
+        if(mode === 'admin') { 
+            if(isGroupMode) await sb.from('group_chats').insert([msgData]); 
+            else { msgData.student_id = activeChatID; await sb.from('personal_chats').insert([msgData]); } 
+        } else { 
+            msgData.student_id = user.id; await sb.from('personal_chats').insert([msgData]); 
+        }
+    } catch(err) {
+        alert("वीडियो कॉल लोड होने में समस्या आई। क्रेडेंशियल्स चेक करें।");
+        console.error(err);
+    }
 }
-function closeVideoCall() { if(confirm("End Call?")) { document.getElementById('video-container').style.display = 'none'; document.getElementById('jitsi-iframe-area').innerHTML = ''; } }
+
+function closeVideoCall() { 
+    if(zpInstance) {
+        zpInstance.destroy(); // ZegoCloud सर्वर से डिस्कनेक्ट करना
+        zpInstance = null;
+    }
+    document.getElementById('video-container').style.display = 'none'; 
+    document.getElementById('jitsi-iframe-area').innerHTML = ''; 
+}
+
 async function trackStats() { 
     const { count: ids } = await sb.from('student_credentials').select('*', { count: 'exact', head: true }); document.getElementById('total-ids').innerText = ids || 0; 
     const { count: att } = await sb.from('attendance').select('*', { count: 'exact', head: true }).eq('date', today); document.getElementById('present-count').innerText = att || 0;
 }
+
 // --- ONLINE PRESENCE TRACKING ---
 let presenceChannel = null;
 let onlineUsersList = {}; // ऑनलाइन छात्रों का डेटा स्टोर करने के लिए
