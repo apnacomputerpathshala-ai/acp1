@@ -129,6 +129,8 @@
 
     <div id="auth-overlay" style="position: fixed; inset: 0; background: #1a237e; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white;">
         <h2>APNA COMPUTER PATHSHALA</h2>
+        <button id="login-install-btn" class="install-btn" onclick="installPortalApp()" style="display:none; margin-bottom: 20px; background: #ff5252; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer;"><i class="fas fa-download"></i> INSTALL APP</button>
+
         <div id="login-form" style="background: rgba(255,255,255,0.1); padding: 25px; border-radius: 15px; width: 300px; text-align: center; backdrop-filter: blur(8px);">
                         <input type="email" id="login-id" placeholder="Email Address" style="width:100%; padding:12px; margin-bottom:12px; border-radius:8px; border:none;">
 
@@ -256,7 +258,7 @@ let activeChatID = '';
 let activeP2PUser = '';
 let today = new Date().toISOString().split('T')[0];
 // यहाँ नीचे वाली लाइन जोड़ें:
-const APP_VERSION = "1.6"; // <--- जब भी नया अपडेट डालें, इसे 1.1, 1.2 कर दें
+const APP_VERSION = "1.7"; // <--- जब भी नया अपडेट डालें, इसे 1.1, 1.2 कर दें
 
 let mediaRecorder; 
 let audioChunks = [];
@@ -307,10 +309,15 @@ window.onload = () => {
 // --- PWA INSTALLATION ---
 let deferredPrompt;
 window.addEventListener('beforeinstallprompt', (e) => { 
-    e.preventDefault(); deferredPrompt = e; 
-    document.getElementById('admin-install-btn').style.display='block'; 
-    document.getElementById('std-install-btn').style.display='block'; 
+    e.preventDefault(); 
+    deferredPrompt = e; 
+    
+    // इन पुरानी लाइन्स के साथ नया बटन भी जोड़ दें
+    if(document.getElementById('admin-install-btn')) document.getElementById('admin-install-btn').style.display='block'; 
+    if(document.getElementById('std-install-btn')) document.getElementById('std-install-btn').style.display='block'; 
+    if(document.getElementById('login-install-btn')) document.getElementById('login-install-btn').style.display='block'; 
 });
+
 async function installPortalApp() { 
     if(deferredPrompt) { 
         deferredPrompt.prompt(); 
@@ -880,7 +887,7 @@ function showOnlineUsers() {
         </div>`;
     }
 }
-// --- PULL TO REFRESH (UNGLI SE KHICH KAR REFRESH) ---
+// --- PULL TO REFRESH (शून्य आवाज़ के साथ शांत रिफ्रेश) ---
 let pStartY = 0;
 document.addEventListener('touchstart', (e) => {
     pStartY = e.touches[0].clientY;
@@ -889,7 +896,6 @@ document.addEventListener('touchstart', (e) => {
 document.addEventListener('touchend', (e) => {
     let pEndY = e.changedTouches[0].clientY;
     
-    // Check karna ki user kis screen par hai aur kya wo ekdum top par hai
     let scrollArea = document.getElementById('admin-display-area');
     if (!scrollArea || scrollArea.offsetHeight === 0) {
         let activeChat = document.querySelector('.chat-area:not([style*="display: none"])');
@@ -898,20 +904,21 @@ document.addEventListener('touchend', (e) => {
     
     let isTop = true;
     if (scrollArea && scrollArea.offsetHeight > 0) {
-        isTop = (scrollArea.scrollTop <= 5); // Agar scroll ekdum upar hai
+        isTop = (scrollArea.scrollTop <= 5);
     }
 
-    // Agar user top par hai aur 150px se zyada niche khichta hai
     if (isTop && (pEndY - pStartY > 150)) {
-        // Aapke banaye gaye notification system se message dikhayega
-        showNotification("🔄 System", "App Refresh ho raha hai...");
+        // आवाज़ वाला नोटिफिकेशन हटा दिया गया है। 
+        // सिर्फ ऊपर का टाइटल बदलकर चुपचाप पेज रिफ्रेश हो जाएगा।
+        let topTitle = document.getElementById('admin-top-title') || document.getElementById('std-top-title');
+        if (topTitle) topTitle.innerText = "Refreshing...";
         
-        // 1 second baad page ko naye code ke sath reload kar dega
         setTimeout(() => {
             window.location.reload(true);
-        }, 1000);
+        }, 800);
     }
 }, {passive: true});
+
 
 </script>
 </body>
