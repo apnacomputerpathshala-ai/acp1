@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Apna Computer Pathshala</title>
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <script>
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  OneSignalDeferred.push(async function(OneSignal) {
+    await OneSignal.init({
+      appId: "ac69211a-fb81-457c-961a-d1a43a138eb4",
+      notifyButton: {
+        enable: true, // स्क्रीन के कोने में एक छोटी सी घंटी दिखेगी जिससे यूजर सब्सक्राइब कर सकेंगे
+      }
+    });
+    // ऐप खुलते ही यूजर से पुश नोटिफिकेशन की परमिशन मांगेगा
+    OneSignal.Slidedown.promptPush(); 
+  });
+</script>
+
+    <link rel="manifest" href="manifest.json">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <script src="https://unpkg.com/@zegocloud/zego-uikit-prebuilt/zego-uikit-prebuilt.js"></script>
+    
+       <style>
+        /* iOS COLOR PALETTE */
+        :root { 
+            --primary: #ffffff;      /* iOS Pure White */
+            --accent: #007aff;       /* iOS System Blue */
+            --bg: #f2f2f7;           /* iOS Background Grey */
+            --text-dark: #1c1c1e;    /* iOS Text Black */
+            --text-muted: #8e8e93;   /* iOS Text Grey */
+        }
+
+        /* iOS TYPOGRAPHY & BODY */
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            background: var(--bg) !important; 
+            margin: 0; overflow: hidden; height: 100dvh; width: 100vw; display: flex; flex-direction: column; 
+            color: var(--text-dark);
+        }
+        
+        #admin-main, #student-main { display: none; flex: 1; width: 100vw; overflow: hidden; position: relative; }
+        
+        /* iOS GLASSMORPHISM (SIDEBAR & NAVBAR) */
+        .sidebar { 
+            width: 260px; 
+            background: rgba(255, 255, 255, 0.75) !important; 
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); 
+            color: var(--text-dark) !important; 
+            display: flex; flex-direction: column; transition: 0.3s; position: relative; z-index: 1000; height: 100%;
+            border-right: 1px solid rgba(0,0,0,0.08);
+        }
+        .sidebar h3, .sidebar-footer { color: var(--text-dark) !important; }
+        .sidebar.hidden { margin-left: -260px; }
+        .main-content { flex: 1; display: flex; flex-direction: column; background: var(--bg); overflow: hidden; height: 100%; position: relative; }
+        
+        .top-nav { 
+            background: rgba(255, 255, 255, 0.85) !important; 
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            color: var(--text-dark) !important; 
+            padding: 10px 15px; display: flex; align-items: center; gap: 10px; justify-content: space-between; min-height: 55px; 
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+        }
+        .toggle-btn { background: none; color: var(--accent) !important; border: none; font-size: 22px; cursor: pointer; }
+        
+        /* iOS MENU ITEMS */
+        .menu-item { padding: 12px 20px; cursor: pointer; display: flex; align-items: center; gap: 12px; font-size: 15px; font-weight: 500; border-radius: 12px; margin: 4px 12px; color: var(--text-dark); }
+        .menu-item.active { background: rgba(0, 122, 255, 0.1) !important; color: var(--accent) !important; border-left: none !important; font-weight: 600; }
+        .menu-item i { font-size: 18px; width: 24px; text-align: center; }
+
+        /* iOS CARDS & STATS */
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 15px; background: transparent; border-bottom: none; }
+        .stat-card { background: #fff !important; padding: 12px 5px; border-radius: 14px !important; text-align: center; border: none !important; box-shadow: 0 4px 12px rgba(0,0,0,0.03) !important; }
+        .stat-card h4 { margin: 0; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-card p { margin: 4px 0 0; font-size: 18px; font-weight: 700; color: var(--text-dark) !important; }
+        
+        .card-item { background: #fff !important; margin: 10px 15px !important; padding: 12px !important; border-radius: 16px !important; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 15px rgba(0,0,0,0.04) !important; border-left: none !important; }
+        
+        /* iOS iMESSAGE CHAT BUBBLES */
+        #admin-display-area, .chat-area { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 12px; background: var(--bg) !important; scroll-behavior: smooth; }
+        .msg-bubble { max-width: 80%; padding: 12px 16px !important; border-radius: 20px !important; font-size: 15px; position: relative; word-wrap: break-word; display: flex; flex-direction: column; box-shadow: none !important; line-height: 1.4; }
+        /* Received Message (Grey) */
+        .msg-bubble[style*="flex-start"] { background: #e5e5ea !important; color: #000 !important; border-bottom-left-radius: 4px !important; }
+        .msg-bubble[style*="flex-start"] small { color: var(--text-muted) !important; }
+        /* Sent Message (Blue) */
+        .msg-bubble[style*="flex-end"] { background: var(--accent) !important; color: #fff !important; border-bottom-right-radius: 4px !important; }
+        .msg-bubble[style*="flex-end"] small, .msg-bubble[style*="flex-end"] span, .msg-bubble[style*="flex-end"] i { color: rgba(255,255,255,0.85) !important; }
+        
+        .chat-img { width: 100%; max-width: 220px; border-radius: 12px; margin-top: 5px; cursor: pointer; }
+        
+        /* iOS INPUT BARS */
+        .input-bar { padding: 12px 15px !important; background: rgba(255, 255, 255, 0.85) !important; backdrop-filter: blur(15px); border-top: 1px solid rgba(0,0,0,0.08) !important; display: flex; align-items: center; gap: 10px; min-height: 65px; }
+        .input-bar input { flex: 1; padding: 12px 18px !important; border-radius: 20px !important; border: 1px solid rgba(0,0,0,0.05) !important; outline: none; background: #f2f2f7 !important; color: #000 !important; font-size: 15px; }
+        .input-bar button[style*="background:var(--primary)"] { background: var(--accent) !important; box-shadow: 0 4px 10px rgba(0,122,255,0.2) !important; }
+
+        /* iOS LOGIN PAGE */
+        #auth-overlay { background: var(--bg) !important; color: var(--text-dark) !important; }
+        #auth-overlay h2 { color: var(--text-dark) !important; font-weight: 700; letter-spacing: -0.5px; }
+        #login-form, #register-form { background: #ffffff !important; padding: 30px !important; border-radius: 24px !important; box-shadow: 0 10px 40px rgba(0,0,0,0.08) !important; border: none !important; backdrop-filter: none !important; }
+        #login-form input, #register-form input { background: #f2f2f7 !important; color: #000 !important; border-radius: 12px !important; border: none !important; padding: 14px !important; }
+        #login-form button, #register-form button { background: var(--accent) !important; border-radius: 14px !important; padding: 14px !important; font-size: 15px; box-shadow: 0 4px 15px rgba(0,122,255,0.3) !important; }
+        #login-form p, #register-form p { color: var(--accent) !important; font-weight: 600; font-size: 13px !important; }
+
+        /* MISC */
+        .att-img { width: 45px !important; height: 45px !important; border-radius: 50%; object-fit: cover; border: none !important; }
+        .portal-footer { background: transparent !important; color: var(--text-muted) !important; text-align: center; padding: 10px; font-size: 11px; border-top: none !important; }
+        .sidebar-footer { padding: 15px; font-size: 10px; text-align: center; color: var(--text-muted); border-top: 1px solid rgba(0,0,0,0.05); margin-top: auto; }
+        #img-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); backdrop-filter: blur(10px); z-index:10001; justify-content:center; align-items:center; cursor: zoom-out; }
+        #img-modal img { max-width: 95%; max-height: 90%; border-radius: 16px; }
+        
+        .recording { color: #ff3b30 !important; animation: blink 1s infinite; }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        .install-btn { background: var(--accent) !important; color: white !important; border: none; padding: 14px; margin: 10px 15px; border-radius: 14px; font-weight: 600; cursor: pointer; display: none; box-shadow: 0 4px 15px rgba(0,122,255,0.3) !important; }
+        
+        @media (max-width: 768px) { .sidebar { position: fixed; left: 0; top: 0; height: 100%; box-shadow: 5px 0 25px rgba(0,0,0,0.1); } .sidebar.hidden { left: -280px; box-shadow: none; } }
+
+        /* iOS TOAST NOTIFICATION */
+        .toast-notification { position: fixed; top: -100px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 350px; background: rgba(255,255,255,0.9); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); padding: 16px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 15px; z-index: 10002; transition: top 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); border-bottom: none; color: #000; }
+        .toast-notification.show { top: 15px; }
+        .toast-icon { background: var(--accent); color: white; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+        .toast-content b { font-size: 15px; }
+        .toast-content span { font-size: 13px; color: var(--text-muted); }
+    </style>
+
+</head>
+<body>
+<div id="video-container" style="display:none; position:fixed; inset:0; background:black; z-index:20000; flex-direction:column;">
+    <div style="background:var(--primary); padding:10px; display:flex; justify-content:space-between; align-items:center; color:white; font-weight:bold;">
+        <span><i class="fas fa-video"></i> ACP Live Class</span>
+        <button onclick="closeVideoCall()" style="background:#ff5252; color:white; border:none; padding:8px 15px; border-radius:5px; cursor:pointer;">End Call</button>
+    </div>
+    <div id="jitsi-iframe-area" style="flex:1; width:100%; height:100%;"></div>
+</div>
+<div id="custom-toast" class="toast-notification">
+    <div class="toast-icon"><i class="fas fa-comment-dots"></i></div>
+    <div class="toast-content">
+        <b id="toast-sender">New Message</b>
+        <span id="toast-msg">Loading...</span>
+    </div>
+</div>
+    <div id="img-modal" onclick="this.style.display='none'"><img id="modal-target" src=""></div>
+        <div id="update-popup" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:99999; justify-content:center; align-items:center;">
+        <div style="background:white; padding:25px; border-radius:15px; text-align:center; max-width:300px; width:80%;">
+            <i class="fas fa-rocket" style="font-size:40px; color:var(--accent); margin-bottom:15px;"></i>
+            <h3 style="margin-top:0; color:var(--primary);">नया अपडेट उपलब्ध है!</h3>
+            <p style="font-size:13px; color:#555;">पोर्टल का नया वर्ज़न आ गया है। नए फीचर्स का आनंद लेने के लिए अभी अपडेट करें।</p>
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button onclick="document.getElementById('update-popup').style.display='none'" style="flex:1; padding:10px; border:1px solid #ddd; background:white; border-radius:8px; cursor:pointer; color:#555;">Skip</button>
+                <button onclick="applyAppUpdate()" style="flex:1; padding:10px; background:var(--accent); color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">Update</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="settings-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:99999; justify-content:center; align-items:center;">
+        <div style="background:white; padding:20px; border-radius:15px; width:80%; max-width:300px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:15px;">
+                <h3 style="margin:0; color:var(--primary);"><i class="fas fa-cog"></i> Settings</h3>
+                <i class="fas fa-times" style="cursor:pointer; font-size:20px; color:#777;" onclick="document.getElementById('settings-modal').style.display='none'"></i>
+            </div>
+            <button onclick="checkForUpdates()" style="width:100%; padding:12px; border:1px solid var(--accent); color:var(--accent); background:#e3f2fd; border-radius:8px; cursor:pointer; font-weight:bold; margin-bottom:15px;"><i class="fas fa-sync-alt"></i> Check For Updates</button>
+            <button onclick="changePassword()" style="width:100%; padding:12px; border:1px solid #4caf50; color:#4caf50; background:#e8f5e9; border-radius:8px; cursor:pointer; font-weight:bold; margin-bottom:15px;"><i class="fas fa-key"></i> Change Password</button>
+
+            <p style="text-align:center; margin:10px 0 0; font-size:12px; color:#888; font-weight:bold; border-top: 1px solid #eee; padding-top: 10px;">App Version: <span id="app-version-text" style="color:var(--accent);">1.0</span></p>
+        </div>
+    </div>
+
+    <div id="auth-overlay" style="position: fixed; inset: 0; background: #1a237e; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white;">
+        <h2>APNA COMPUTER PATHSHALA</h2>
+        <button id="login-install-btn" class="install-btn" onclick="installPortalApp()" style="display:none; margin-bottom: 20px; background: #ff5252; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer;"><i class="fas fa-download"></i> INSTALL APP</button>
+
+        <div id="login-form" style="background: rgba(255,255,255,0.1); padding: 25px; border-radius: 15px; width: 300px; text-align: center; backdrop-filter: blur(8px);">
+                        <input type="email" id="login-id" placeholder="Email Address" style="width:100%; padding:12px; margin-bottom:12px; border-radius:8px; border:none;">
+
+            <input type="password" id="login-pass" placeholder="Password" style="width:100%; padding:12px; margin-bottom:12px; border-radius:8px; border:none;">
+            <button onclick="processLogin()" style="width:100%; padding:12px; background:var(--accent); color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">LOGIN</button>
+            <p onclick="toggleAuth(true)" style="font-size:11px; margin-top:12px; cursor:pointer; opacity:0.8;">New Registration</p>
+        </div>
+        <div id="register-form" style="display:none; background: rgba(255,255,255,0.1); padding: 25px; border-radius: 15px; width: 300px; text-align: center;">
+            <img id="reg-preview" src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" style="width:65px; height:65px; border-radius:50%; object-fit:cover; border:2px solid #fff;">
+            <br><button onclick="document.getElementById('reg-photo').click()" style="font-size:10px; margin:8px; border:none; cursor:pointer;">Select Photo</button>
+            <input type="file" id="reg-photo" style="display:none;" onchange="previewProfile(this)">
+            <input type="text" id="reg-name" placeholder="Full Name (CAPITALS)" style="width:100%; padding:10px; margin-bottom:10px; border-radius:5px; border:none;">
+             <input type="email" id="reg-id" placeholder="Email Address" style="width:100%; padding:10px; margin-bottom:10px; border-radius:5px; border:none;">
+
+            <input type="password" id="reg-pass" placeholder="Password" style="width:100%; padding:10px; margin-bottom:10px; border-radius:5px; border:none;">
+            <button onclick="processRegister()" style="width:100%; padding:12px; background:#4caf50; color:white; border:none; border-radius:8px; font-weight:bold;">REGISTER</button>
+            <p onclick="toggleAuth(false)" style="font-size:11px; margin-top:12px; cursor:pointer;">Back</p>
+        </div>
+    </div>
+
+    <div id="admin-main">
+        <div class="sidebar hidden" id="admin-sidebar">
+            <div style="padding:25px 15px; text-align:center;">
+                <img id="admin-p-img" onclick="uploadAdminPhoto()" src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" style="width:55px; border-radius:50%; border:2px solid #fff; cursor:pointer;">
+                <h3 onclick="updateAdminProfile()" style="margin:10px 0 0; font-size:16px; cursor:pointer;">APNA COMPUTER PATHSHALA</h3>
+            </div>
+            <div class="menu-item active" onclick="switchTab('quizzes', this)"><i class="fas fa-trophy"></i> Leaderboard</div>
+            <div class="menu-item" onclick="switchTab('attendance', this)"><i class="fas fa-user-check"></i> Attendance</div>
+            <div class="menu-item" onclick="switchTab('student_credentials', this)"><i class="fas fa-users"></i> Student IDs</div>
+            <div class="menu-item" onclick="switchTab('student_chats_list', this)"><i class="fas fa-comments"></i> Student Chats</div>
+            <div class="menu-item" onclick="openAdminGroupChat(this)"><i class="fas fa-bullhorn"></i> Group Chat</div>
+            <div class="menu-item" onclick="switchTab('monitor', this)"><i class="fas fa-eye"></i> Monitor Private</div>
+            <div class="menu-item" onclick="switchTab('recycle_bin', this)"><i class="fas fa-trash"></i> Recycle Bin</div>
+            <div class="menu-item" onclick="switchTab('monthly_report', this)"><i class="fas fa-file-invoice"></i> Monthly Report</div>
+            <div class="menu-item" onclick="document.getElementById('settings-modal').style.display='flex'"><i class="fas fa-cog"></i> Settings</div>
+
+            <div class="sidebar-footer">© 2026 Apna Computer Pathshala<br>डिजिटल लर्निंग एवं डाउट सॉल्वर | सूरज कुमार</div>
+            <button id="admin-install-btn" class="install-btn" onclick="installPortalApp()"><i class="fas fa-download"></i> INSTALL APP</button>
+            <button onclick="logout()" style="margin: 15px; padding: 10px; background: #f44336; color:white; border:none; border-radius:8px; cursor:pointer;">Logout</button>
+        </div>
+        <div class="main-content">
+            <div class="top-nav"><button class="toggle-btn" onclick="toggleSidebar('admin-sidebar')"><i class="fas fa-bars"></i></button><b id="admin-top-title">Leaderboard</b><input type="date" id="admin-date" onchange="loadAdminData()" style="width:125px; border-radius:5px; border:none; padding:4px;"></div>
+        <div class="stats-grid">
+    <div class="stat-card" style="cursor:pointer; background:#e3f2fd; border-color:#2979ff;" onclick="showOnlineUsers()">
+        <h4 style="color:#2979ff;">Live <i class="fas fa-eye"></i></h4>
+        <p id="online-count">0</p>
+    </div>
+    <div class="stat-card"><h4>Present</h4><p id="present-count">0</p></div>
+    <div class="stat-card"><h4>Total</h4><p id="total-ids">0</p></div>
+</div>
+
+            <div id="admin-display-area"></div>
+            <div id="admin-reply-box" class="input-bar" style="display:none;">
+                <input type="file" id="admin-file" style="display:none;" accept="image/*,application/pdf,video/*" onchange="sendPhoto('admin')">
+                <button onclick="document.getElementById('admin-file').click()" style="color:var(--accent); font-size:1.4rem; background:none; border:none;"><i class="fas fa-camera"></i></button>
+                <button id="voice-btn-admin" onclick="toggleVoiceRecord('admin')" style="background:none; border:none; color:var(--accent); font-size:1.4rem;"><i class="fas fa-microphone"></i></button>
+<button onclick="startVideoCall('admin')" style="background:none; border:none; color:var(--accent); font-size:1.4rem;"><i class="fas fa-video"></i></button>
+                <input type="text" id="admin-msg-input" placeholder="Reply...">
+                <button onclick="sendAdminReply()" style="background:var(--primary); color:white; border:none; width:45px; height:45px; border-radius:50%;"><i class="fas fa-paper-plane"></i></button>
+            </div>
+            <footer class="portal-footer">© 2026 Apna Computer Pathshala | सूरज कुमार</footer>
+        </div>
+    </div>
+
+    <div id="student-main">
+        <div class="sidebar hidden" id="std-sidebar">
+            <div style="padding:25px; text-align:center;"><img id="std-p-img" style="width:65px; height:65px; border-radius:50%; border:2px solid white; object-fit:cover;"><h3 id="std-name-side" style="font-size:16px; margin-top:10px;">Student</h3></div>
+            <div class="menu-item active" onclick="stdSwitch('chat', this)"><i class="fas fa-comments"></i> Doubt Box</div>
+            <div class="menu-item" onclick="stdSwitch('p2p', this)"><i class="fas fa-user-friends"></i> Private Chat</div>
+            <div class="menu-item" onclick="stdSwitch('group', this)"><i class="fas fa-users"></i> Global Group</div>
+            <div class="menu-item" onclick="stdSwitch('leader', this)"><i class="fas fa-award"></i> Leaderboard</div>
+          <div class="menu-item" onclick="document.getElementById('settings-modal').style.display='flex'"><i class="fas fa-cog"></i> Settings</div>
+  
+            <div class="sidebar-footer">© 2026 Apna Computer Pathshala<br>डिजिटल लर्निंग एवं डाउट सॉल्वर | सूरज कुमार</div>
+            <button id="std-install-btn" class="install-btn" onclick="installPortalApp()"><i class="fas fa-download"></i> INSTALL APP</button>
+            <button onclick="logout()" style="margin: 15px; padding: 10px; background: #f44336; color:white; border:none; border-radius:8px; cursor:pointer;">EXIT PORTAL</button>
+        </div>
+        <div class="main-content">
+            <div class="top-nav"><button class="toggle-btn" onclick="toggleSidebar('std-sidebar')"><i class="fas fa-bars"></i></button><b id="std-top-title">Doubt Box</b></div>
+            
+            <div id="std-chat-container" class="main-content" style="display:flex;">
+                <div id="std-chat-area" class="chat-area"></div>
+                <div class="input-bar">
+                    <input type="file" id="std-file" style="display:none;" accept="image/*,application/pdf,video/*" onchange="sendPhoto('personal')">
+                    <button onclick="document.getElementById('std-file').click()" style="color:var(--accent); font-size:1.4rem; background:none; border:none;"><i class="fas fa-camera"></i></button>
+                    <button id="voice-btn-std" onclick="toggleVoiceRecord('personal')" style="background:none; border:none; color:var(--accent); font-size:1.4rem;"><i class="fas fa-microphone"></i></button>
+<button onclick="startVideoCall('personal')" style="background:none; border:none; color:var(--accent); font-size:1.4rem;"><i class="fas fa-video"></i></button>
+                    <input type="text" id="std-msg-in" placeholder="Ask doubt...">
+                    <button onclick="sendStdPersonalChat()" style="background:var(--primary); color:white; border:none; width:45px; height:45px; border-radius:50%;"><i class="fas fa-paper-plane"></i></button>
+                </div>
+            </div>
+
+            <div id="std-p2p-container" class="main-content" style="display:none; padding:15px;">
+                <p id="p2p-info">Chat with Friend (Enter ID):</p>
+                <div style="display:flex; gap:10px; margin-bottom:15px;"><input type="text" id="p2p-friend-id" placeholder="Friend ID..." style="flex:1; padding:12px; border-radius:8px; border:1px solid #ccc;"><button onclick="checkAndStartChat()" style="background:var(--accent); color:white; border:none; width:45px; border-radius:8px;"><i class="fas fa-search"></i></button></div>
+                <div id="p2p-chat-box" style="display:none; flex:1; flex-direction:column; overflow:hidden; height:100%;"><div id="p2p-msg-area" class="chat-area"></div><div class="input-bar"><input type="file" id="p2p-file" style="display:none;" accept="image/*,application/pdf,video/*" onchange="sendPhoto('p2p')"><button onclick="document.getElementById('p2p-file').click()" style="color:var(--accent); font-size:1.4rem; background:none; border:none;"><i class="fas fa-camera"></i></button><input type="text" id="p2p-msg-input" placeholder="Message..."><button onclick="sendP2P()" style="background:var(--primary); color:white; border-radius:50%; width:45px; height:45px; border:none;"><i class="fas fa-paper-plane"></i></button></div></div>
+            </div>
+
+            <div id="std-group-container" class="main-content" style="display:none;">
+                <div id="std-group-area" class="chat-area"></div>
+                <div class="input-bar">
+                    <input type="text" id="std-group-msg-in" placeholder="Group chat...">
+                    <button onclick="sendStdGroupChat()" style="background:var(--primary); color:white; border:none; width:45px; height:45px; border-radius:50%;"><i class="fas fa-paper-plane"></i></button>
+                </div>
+            </div>
+
+            <div id="std-leader-container" class="main-content" style="display:none; padding:15px; overflow-y:auto;"><h3 style="text-align:center;">Ranking</h3><div id="std-leader-list"></div></div>
+            <footer class="portal-footer">© 2026 Apna Computer Pathshala | सूरज कुमार</footer>
+        </div>
+    </div>
+<script>
+// --- SUPABASE SETUP (FIXED) ---
+const supabaseUrl = 'https://wolomnumsbqrybkjauma.supabase.co';
+
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvbG9tbnVtc2Jxcnlia2phdW1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1OTY4MjcsImV4cCI6MjA5NTE3MjgyN30._jRgagOu6vz6M7tHV29MmZq_KgNkPiCvW9Z8wTqloZY';
+
+// वेरिएबल का नाम बदलकर 'sb' कर दिया गया है ताकि कोई क्लैश न हो
+const sb = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+// ग्लोबल वेरिएबल्स
+let user = null;
+let currentMode = '';
+let isGroupMode = false;
+let activeChatID = '';
+let activeP2PUser = '';
+let today = new Date().toISOString().split('T')[0];
+// यहाँ नीचे वाली लाइन जोड़ें:
+const APP_VERSION = "1.8"; // <--- जब भी नया अपडेट डालें, इसे 1.1, 1.2 कर दें
+
+let mediaRecorder; 
+let audioChunks = [];
+let msgSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'); 
+
+// --- NOTIFICATION & UTILS ---
+function showNotification(sender, message) {
+    msgSound.play().catch(e => console.log("Sound error"));
+    const toast = document.getElementById('custom-toast');
+    document.getElementById('toast-sender').innerText = sender;
+    document.getElementById('toast-msg').innerText = message.length > 35 ? message.substring(0, 35) + "..." : message;
+    toast.classList.add('show');
+    setTimeout(() => { toast.classList.remove('show'); }, 15000);
+
+    
+    if (document.hidden && Notification.permission === "granted") {
+        new Notification("ACP Portal", { body: sender + ": " + message, icon: "https://cdn-icons-png.flaticon.com/512/3135/3135715.png" });
+    }
+}
+if (window.Notification && Notification.permission !== "granted") Notification.requestPermission();
+
+function speak(t) { const m = new SpeechSynthesisUtterance(); m.text = t; m.lang = 'hi-IN'; window.speechSynthesis.speak(m); }
+function formatLinks(t) { if (!t) return ""; const r = /(https?:\/\/[^\s]+)/g; return t.replace(r, (u) => `<a href="${u}" target="_blank" style="color:#2979ff;">${u}</a>`); }
+function openFullImg(src) { document.getElementById('modal-target').src = src; document.getElementById('img-modal').style.display = 'flex'; }
+function formatMessage(text) {
+    if (!text) return "";
+    const ytRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+    const match = text.match(ytRegex);
+    let html = formatLinks(text);
+    if (match && match[1]) html += `<div style="margin-top:10px; position:relative; padding-bottom:56.25%; height:0; overflow:hidden; border-radius:8px;"><iframe style="position:absolute; top:0; left:0; width:100%; height:100%;" src="https://www.youtube.com/embed/${match[1]}" frameborder="0" allowfullscreen></iframe></div>`;
+    return html;
+}
+
+// --- INITIAL LOAD ---
+window.onload = () => { 
+    // UI में Version दिखाना
+    const vText = document.getElementById('app-version-text');
+    if(vText) vText.innerText = APP_VERSION;
+
+    const sessionUser = localStorage.getItem('sessionUser'); 
+    const sessionRole = localStorage.getItem('sessionRole'); 
+    if(sessionUser && sessionRole) { 
+        if(sessionRole === 'admin') openAdmin(); 
+        else { user = JSON.parse(sessionUser); openStudent(); } 
+    } 
+};
+
+// --- PWA INSTALLATION ---
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => { 
+    e.preventDefault(); 
+    deferredPrompt = e; 
+    
+    // इन पुरानी लाइन्स के साथ नया बटन भी जोड़ दें
+    if(document.getElementById('admin-install-btn')) document.getElementById('admin-install-btn').style.display='block'; 
+    if(document.getElementById('std-install-btn')) document.getElementById('std-install-btn').style.display='block'; 
+    if(document.getElementById('login-install-btn')) document.getElementById('login-install-btn').style.display='block'; 
+});
+
+async function installPortalApp() { 
+    if(deferredPrompt) { 
+        deferredPrompt.prompt(); 
+        const { outcome } = await deferredPrompt.userChoice; 
+        if(outcome === 'accepted') deferredPrompt = null; 
+    } else alert("App is already installed or add to Home Screen manually via Chrome Menu."); 
+}
+// --- PWA ADVANCED UPDATE SYSTEM ---
+let swRegistration = null;
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').then(reg => {
+            swRegistration = reg;
+            // जब भी कोई नया अपडेट आएगा, यह अपने आप पॉपअप दिखा देगा
+            reg.onupdatefound = () => {
+                const installingWorker = reg.installing;
+                installingWorker.onstatechange = () => {
+                    if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        document.getElementById('update-popup').style.display = 'flex';
+                    }
+                };
+            };
+        }).catch(err => console.log('SW Error:', err));
+    });
+}
+
+// जब छात्र 'Update' बटन दबाएगा तो यह बिना हिस्ट्री डिलीट किए नया ऐप लाएगा
+async function applyAppUpdate() {
+    document.getElementById('update-popup').style.display = 'none';
+    showNotification("🔄 System", "ऐप अपडेट हो रहा है, कृपया प्रतीक्षा करें...");
+    
+    // 1. सर्विस वर्कर और पुराना कैश डिलीट करना
+    if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for (let reg of regs) { await reg.unregister(); }
+    }
+    try {
+        const cacheNames = await caches.keys();
+        for (let name of cacheNames) { await caches.delete(name); }
+    } catch(e) {}
+    
+    // 2. नए वर्ज़न के साथ पेज को रीलोड करना
+    setTimeout(() => {
+        window.location.href = window.location.origin + window.location.pathname + '?v=' + new Date().getTime();
+    }, 1000);
+}
+
+// सेटिंग टैब में 'Check for Updates' बटन का काम
+async function checkForUpdates() {
+    document.getElementById('settings-modal').style.display = 'none';
+    showNotification("🔍 System", "नया अपडेट चेक किया जा रहा है...");
+    
+    if ('serviceWorker' in navigator && swRegistration) {
+        await swRegistration.update(); // सर्वर से चेक करेगा
+        
+        // अगर 2 सेकंड में कोई पॉपअप नहीं आया, मतलब ऐप अप-टू-डेट है
+        setTimeout(() => {
+            if(document.getElementById('update-popup').style.display !== 'flex') {
+                showNotification("✅ System", "आपका ऐप बिल्कुल अप-टू-डेट है!");
+            }
+        }, 2000);
+    } else {
+        applyAppUpdate(); // अगर PWA काम नहीं कर रहा तो सीधा रीफ्रेश कर देगा
+    }
+}
+
+
+async function processLogin() {
+    try {
+        const email = document.getElementById('login-id').value.trim(); 
+        const ps = document.getElementById('login-pass').value.trim();
+        
+        if(!email || !ps) { alert("कृपया ईमेल और पासवर्ड डालें!"); return; }
+
+        // 👉 HIDDEN MASTER ADMIN LOGIN 
+        // yahan "c3VyYWpANzA3MA==" asal mein "suraj@7070" ka hidden roop hai
+        if (email.toLowerCase() === "surajkumar552526123@gmail.com" && btoa(ps) === "c3VyYWpANzA3MA==") {
+            localStorage.setItem('sessionUser', 'admin'); 
+            localStorage.setItem('sessionRole', 'admin'); 
+            if(typeof speak === "function") speak("स्वागत है सूरज सर।"); 
+            openAdmin(); 
+            return;
+        }
+
+        // 1. Admin Check (Database se)
+        const { data: adminData, error: adminErr } = await sb.from('admin_users').select('*').eq('admin_id', email).eq('password', ps).maybeSingle();
+
+        if (adminData) {
+            localStorage.setItem('sessionUser', 'admin'); 
+            localStorage.setItem('sessionRole', 'admin'); 
+            if(typeof speak === "function") speak("स्वागत है एडमिन।"); 
+            openAdmin(); 
+            return;
+        }
+
+        // 2. Student Check (Database se)
+        const { data: studentData, error: stdErr } = await sb.from('student_credentials').select('*').eq('id', email).eq('pass', ps).maybeSingle();
+        
+        if(stdErr) throw stdErr;
+
+        if (studentData) {
+            user = { id: studentData.id, name: studentData.name, photo: studentData.photo }; 
+            localStorage.setItem('sessionUser', JSON.stringify(user)); 
+            localStorage.setItem('sessionRole', 'student'); 
+            await sb.from('attendance').insert([{ date: today, student_id: email, name: studentData.name, time: new Date().toLocaleTimeString(), photo: studentData.photo || "" }]);
+            if(typeof speak === "function") speak(`नमस्ते ${studentData.name}`); 
+            openStudent();
+        } else {
+            alert("गलत ईमेल या पासवर्ड! कृपया दोबारा चेक करें।");
+        }
+    } catch (e) {
+        alert("लॉगिन एरर: " + e.message);
+        console.error(e);
+    }
+}
+
+// --- नया रजिस्ट्रेशन फंक्शन (Storage में फोटो अपलोड के साथ) ---
+async function processRegister() {
+    try {
+        const n = document.getElementById('reg-name').value.trim().toUpperCase();
+        const email = document.getElementById('reg-id').value.trim();
+        const ps = document.getElementById('reg-pass').value.trim();
+        const fl = document.getElementById('reg-photo').files[0];
+        
+        if(!n || !email || !ps) { alert("सभी जानकारी भरें!"); return; }
+        if(ps.length < 6) { alert("पासवर्ड कम से कम 6 अक्षरों का होना चाहिए!"); return; }
+
+        if (fl && fl.size > 2 * 1024 * 1024) { 
+            alert("फोटो का साइज़ 2MB से कम होना चाहिए!"); 
+            return; 
+        }
+
+        document.getElementById('reg-name').value = "कृपया प्रतीक्षा करें..."; 
+        let photoUrl = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"; // डिफ़ॉल्ट फोटो
+
+        // 1. फोटो को Supabase Storage में अपलोड करना
+        if(fl) { 
+            const fileName = `student_${Date.now()}_${fl.name}`;
+            const { data: uploadData, error: uploadError } = await sb.storage.from('profile_photos').upload(fileName, fl);
+            
+            if (uploadError) throw uploadError;
+
+            // 2. अपलोड हुई फोटो का पब्लिक URL लेना
+            const { data: publicUrlData } = sb.storage.from('profile_photos').getPublicUrl(fileName);
+            photoUrl = publicUrlData.publicUrl;
+        }
+        
+        // 3. डेटाबेस में रिकॉर्ड सेव करना
+        const { error } = await sb.from('student_credentials').insert([{ id: email, name: n, pass: ps, photo: photoUrl }]);
+        
+        if(error) {
+            // अगर ईमेल पहले से है
+            if(error.code === '23505') alert("यह ईमेल पहले से रजिस्टर है। कृपया दूसरा ईमेल इस्तेमाल करें या लॉगिन करें।");
+            else alert("रजिस्ट्रेशन में समस्या आई: " + error.message);
+        } else { 
+            speak(`बधाई हो ${n}`); 
+            alert("रजिस्ट्रेशन सफल! अब आप लॉगिन कर सकते हैं।"); 
+            toggleAuth(false); 
+        }
+        document.getElementById('reg-name').value = n; // नाम वापस ठीक करना
+        
+    } catch (e) {
+        alert("रजिस्ट्रेशन एरर: " + e.message);
+    }
+}
+
+// --- नया पासवर्ड चेंज फंक्शन ---
+async function changePassword() {
+    if(localStorage.getItem('sessionRole') !== 'student') {
+        alert("यह फीचर सिर्फ स्टूडेंट्स के लिए है।"); return;
+    }
+    const newPass = prompt("अपना नया पासवर्ड दर्ज करें (कम से कम 6 अक्षर):");
+    if(newPass && newPass.length >= 6) {
+        const { error } = await sb.from('student_credentials').update({ pass: newPass }).eq('id', user.id);
+        if(error) {
+            alert("पासवर्ड बदलने में समस्या आई: " + error.message);
+        } else {
+            alert("आपका पासवर्ड सफलतापूर्वक बदल गया है! सुरक्षा कारणों से आपको दोबारा लॉगिन करना होगा।");
+            logout();
+        }
+    } else if (newPass) {
+        alert("पासवर्ड बहुत छोटा है!");
+    }
+}
+
+function openAdmin() { document.getElementById('auth-overlay').style.display='none'; document.getElementById('admin-main').style.display='flex'; document.getElementById('admin-date').value=today; loadAdminData(); trackStats(); trackOnline(); }
+
+function openStudent() { document.getElementById('auth-overlay').style.display='none'; document.getElementById('student-main').style.display='flex'; document.getElementById('std-p-img').src=user.photo||''; document.getElementById('std-name-side').innerText=user.name; stdSwitch('chat', document.querySelector('.menu-item')); trackOnline(); }
+function logout() { localStorage.clear(); location.reload(); }
+function toggleSidebar(id) { document.getElementById(id).classList.toggle('hidden'); }
+function toggleAuth(is) { document.getElementById('login-form').style.display = is ? 'none' : 'block'; document.getElementById('register-form').style.display = is ? 'block' : 'none'; }
+function previewProfile(i) { if(i.files[0]) { const r = new FileReader(); r.onload=(e)=>document.getElementById('reg-preview').src=e.target.result; r.readAsDataURL(i.files[0]); } }
+
+function updateAdminProfile() { const n = prompt("नया नाम दर्ज करें:", "ACP Admin"); if(n) document.querySelector('#admin-sidebar h3').innerText = n; }
+function uploadAdminPhoto() { const inp = document.createElement('input'); inp.type='file'; inp.accept='image/*'; inp.onchange=(e)=>{const r=new FileReader(); r.onload=()=>{document.getElementById('admin-p-img').src=r.result; alert("फोटो अपडेट!");}; r.readAsDataURL(e.target.files[0]);}; inp.click(); }
+
+// --- CHAT SYSTEM (SUPABASE REALTIME) ---
+let currentSubscription = null;
+async function loadChatMessages(tableName, areaId, myName, filterCol = null, filterVal = null) {
+    const area = document.getElementById(areaId); const isGlobal = (tableName === 'group_chats'); const isAdmin = (localStorage.getItem('sessionRole') === 'admin');
+    area.innerHTML = "<p style='text-align:center;'>लोड हो रहा है...</p>";
+    if (currentSubscription) await sb.removeChannel(currentSubscription);
+
+    let query = sb.from(tableName).select('*').order('timestamp', { ascending: true });
+    if(filterCol && filterVal) query = query.eq(filterCol, filterVal);
+    const { data: messages, error } = await query;
+    if(error) { area.innerHTML = "एरर: " + error.message; return; }
+
+    const renderMessages = (msgs) => {
+        area.innerHTML = "";
+        msgs.forEach(d => {
+            let isMe = false;
+            if(isGlobal) { if(isAdmin) isMe = (d.sender === "SIR"); else isMe = (d.sender !== "SIR" && d.sender === myName); } 
+            else isMe = (d.sender === myName || (isAdmin && d.sender === "SIR"));
+            
+            const div = document.createElement('div'); div.className = "msg-bubble"; div.id = `msg-${d.id}`;
+            div.style.cssText = `align-self:${isMe?'flex-end':'flex-start'}; background:${isMe?'#dcf8c6':'#fff'}; margin-bottom:8px; box-shadow:0 1px 2px rgba(0,0,0,0.1); padding:10px; border-radius:12px; max-width:85%;`;
+            
+            let content = `<small style="font-size:9px; color:${d.sender==='SIR'?'red':'blue'}; font-weight:bold;">${d.sender}</small>`;
+            if (d.type === 'file') {
+                if (d.file_format === 'pdf') content += `<div style="border:1px solid #ddd; padding:10px; border-radius:8px; text-align:center; background:#f9f9f9; margin-top:5px;"><i class="fas fa-file-pdf" style="font-size:35px; color:red;"></i><p style="font-size:10px; margin:5px 0;">${d.file_name}</p><a href="${d.msg}" download style="background:var(--accent); color:white; padding:4px 10px; border-radius:4px; text-decoration:none; font-size:11px;">Download</a></div>`;
+                else if (d.file_format === 'video') content += `<video controls style="width:100%; border-radius:8px; margin-top:5px;"><source src="${d.msg}"></video>`;
+                else if (d.file_format === 'audio') content += `<audio controls style="width:200px; height:35px; margin-top:5px;"><source src="${d.msg}" type="audio/mp3"></audio>`;
+                else content += `<img src="${d.msg}" class="chat-img" onclick="openFullImg(this.src)">`;
+            } else content += `<p style="margin:5px 0;">${formatMessage(d.msg)}</p>`;
+            
+            if (isAdmin || (!isGlobal && isMe)) content += `<span style="font-size:9px; color:red; cursor:pointer; text-align:right; display:block; margin-top:5px;" onclick="deleteMsg('${tableName}', ${d.id})"><i class="fas fa-trash"></i> Delete</span>`;
+            div.innerHTML = content; area.appendChild(div);
+        });
+        area.scrollTop = area.scrollHeight;
+    };
+    if (messages) renderMessages(messages);
+
+    let channelFilter = `*`; if(filterCol && filterVal) channelFilter = `${filterCol}=eq.${filterVal}`;
+    currentSubscription = sb.channel('custom-chat-channel')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: tableName, filter: channelFilter }, (payload) => {
+            const newMsg = payload.new; messages.push(newMsg); renderMessages(messages);
+            const senderName = (localStorage.getItem('sessionRole') === 'admin') ? "SIR" : user?.name;
+            if (newMsg.sender !== senderName) showNotification(newMsg.sender, newMsg.type === 'file' ? "📎 फाइल भेजी गई है" : newMsg.msg);
+        })
+        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: tableName, filter: channelFilter }, (payload) => { const div = document.getElementById(`msg-${payload.old.id}`); if(div) div.remove(); })
+        .subscribe();
+}
+
+async function sendAdminReply() { const m = document.getElementById('admin-msg-input').value.trim(); if(m) { if(isGroupMode) await sb.from('group_chats').insert([{ sender: "SIR", msg: m, timestamp: Date.now() }]); else await sb.from('personal_chats').insert([{ student_id: activeChatID, sender: "SIR", msg: m, timestamp: Date.now() }]); document.getElementById('admin-msg-input').value = ""; } }
+async function sendStdPersonalChat() { const m = document.getElementById('std-msg-in').value.trim(); if(m) { await sb.from('personal_chats').insert([{ student_id: user.id, sender: user.name, msg: m, timestamp: Date.now() }]); document.getElementById('std-msg-in').value = ""; } }
+async function sendStdGroupChat() { const m = document.getElementById('std-group-msg-in').value.trim(); if(m) { await sb.from('group_chats').insert([{ sender: user.name, msg: m, timestamp: Date.now() }]); document.getElementById('std-group-msg-in').value = ""; } }
+async function sendP2P() { const m = document.getElementById('p2p-msg-input').value.trim(); if(m) { const room = [user.id, activeP2PUser].sort().join("_"); await sb.from('p2p_chats').insert([{ room_id: room, sender: user.name, msg: m, timestamp: Date.now() }]); document.getElementById('p2p-msg-input').value = ""; } }
+
+// --- नया फाइल सेंड फंक्शन (Storage Upload के साथ) ---
+async function sendPhoto(m) {
+    let inputId = (m === 'admin') ? 'admin-file' : (m === 'p2p' ? 'p2p-file' : 'std-file');
+    const file = document.getElementById(inputId).files[0]; 
+    if (!file) return;
+    
+    // चैट में 5MB तक की फाइल एलाऊ कर देते हैं
+    if (file.size > 5 * 1024 * 1024) return alert("फाइल का साइज़ 5MB से कम होना चाहिए!"); 
+
+    let fileType = 'image'; 
+    if (file.type.includes('pdf')) fileType = 'pdf'; 
+    else if (file.type.includes('video')) fileType = 'video';
+
+    showNotification("System", "फाइल अपलोड हो रही है, कृपया प्रतीक्षा करें...");
+
+    try {
+        // फाइल का नाम सेट करना (स्पेस हटाकर)
+        const fileName = `chat_${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+        
+        // Storage में अपलोड
+        const { error: uploadError } = await sb.storage.from('chat_media').upload(fileName, file);
+        if (uploadError) throw uploadError;
+
+        // पब्लिक URL लेना
+        const { data: publicUrlData } = sb.storage.from('chat_media').getPublicUrl(fileName);
+        const fileUrl = publicUrlData.publicUrl;
+
+        const msgData = { sender: (m === 'admin') ? "SIR" : user.name, msg: fileUrl, type: 'file', file_format: fileType, file_name: file.name, timestamp: Date.now() };
+        
+        // डेटाबेस में सिर्फ URL सेव करना
+        if (m === 'admin') { 
+            if (isGroupMode) await sb.from('group_chats').insert([msgData]); 
+            else { msgData.student_id = activeChatID; await sb.from('personal_chats').insert([msgData]); } 
+        } else if (m === 'p2p') { 
+            msgData.room_id = [user.id, activeP2PUser].sort().join("_"); 
+            await sb.from('p2p_chats').insert([msgData]); 
+        } else { 
+            msgData.student_id = user.id; await sb.from('personal_chats').insert([msgData]); 
+        }
+        document.getElementById(inputId).value = "";
+    } catch(e) {
+        alert("अपलोड में एरर: " + e.message);
+    }
+}
+
+// --- नया वॉइस रिकॉर्ड फंक्शन (Storage Upload के साथ) ---
+async function toggleVoiceRecord(mode) {
+    const btn = document.getElementById(mode === 'admin' ? 'voice-btn-admin' : 'voice-btn-std');
+    if (!mediaRecorder || mediaRecorder.state === "inactive") {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); 
+        mediaRecorder = new MediaRecorder(stream); 
+        audioChunks = [];
+        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+        
+        mediaRecorder.onstop = async () => {
+            showNotification("System", "वॉइस मैसेज भेजा जा रहा है...");
+            const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' }); 
+            
+            try {
+                const fileName = `voice_${Date.now()}.mp3`;
+                const { error: uploadError } = await sb.storage.from('chat_media').upload(fileName, audioBlob);
+                if (uploadError) throw uploadError;
+
+                const { data: publicUrlData } = sb.storage.from('chat_media').getPublicUrl(fileName);
+                const fileUrl = publicUrlData.publicUrl;
+
+                const msgData = { sender: (mode === 'admin') ? "SIR" : user.name, msg: fileUrl, type: 'file', file_format: 'audio', timestamp: Date.now() };
+                
+                if(mode === 'admin') { 
+                    if(isGroupMode) await sb.from('group_chats').insert([msgData]); 
+                    else { msgData.student_id = activeChatID; await sb.from('personal_chats').insert([msgData]); } 
+                } else { 
+                    msgData.student_id = user.id; await sb.from('personal_chats').insert([msgData]); 
+                }
+            } catch(e) {
+                alert("वॉइस सेंड एरर: " + e.message);
+            }
+        }; 
+        mediaRecorder.start(); 
+        btn.classList.add('recording'); 
+    } else { 
+        mediaRecorder.stop(); 
+        btn.classList.remove('recording'); 
+    }
+}
+
+
+async function deleteMsg(table, id) {
+    if(confirm("Delete this?")) await sb.from(table).delete().eq('id', id);
+}
+
+// --- ADMIN PANELS (SUPABASE UPDATED) ---
+function switchTab(t, el) { 
+    currentMode = t; isGroupMode = false;
+    document.querySelectorAll('#admin-sidebar .menu-item').forEach(m => m.classList.remove('active')); el.classList.add('active'); 
+    document.querySelector('#admin-top-title').innerText = el.innerText;
+    document.getElementById('admin-reply-box').style.display = 'none'; 
+    if(t === 'student_chats_list') loadStudentChatList(); else loadAdminData(); 
+    if(window.innerWidth < 768) toggleSidebar('admin-sidebar');
+}
+
+async function loadAdminData() {
+    const area = document.getElementById('admin-display-area'); const d = document.getElementById('admin-date').value; area.innerHTML = "";
+    if(currentMode === 'attendance') {
+        const { data: att } = await sb.from('attendance').select('*').eq('date', d);
+        area.innerHTML = `<h4>Attendance (${d})</h4>`; 
+        if(att) att.forEach(v => { area.innerHTML += `<div class="card-item"><div style="display:flex;align-items:center;gap:12px;"><img class="att-img" src="${v.photo||''}"><div><b>${v.name}</b><br><small><i class="fas fa-clock"></i> ${v.time}</small></div></div><i class="fas fa-trash" style="color:red;cursor:pointer;" onclick="deleteMsg('attendance', ${v.id}); loadAdminData();"></i></div>`; });
+    } else if(currentMode === 'student_credentials') {
+        area.innerHTML = `<div style="padding:10px;"><input type="text" id="id-search" placeholder="ID सर्च करें..." onkeyup="searchIDs()" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;"></div><div id="ids-list"></div>`; searchIDs();
+    }
+}
+
+async function searchIDs() {
+    const term = document.getElementById('id-search')?.value.trim().toLowerCase() || ""; 
+    const list = document.getElementById('ids-list');
+    list.innerHTML = "<p style='text-align:center;'>सर्च हो रहा है...</p>";
+    
+    // Supabase .ilike() का इस्तेमाल ताकि सर्वर से ही फिल्टर होकर डेटा आए
+    let query = sb.from('student_credentials').select('*');
+    if (term) {
+        query = query.ilike('name', `%${term}%`); // सिर्फ नाम से सर्च करने के लिए तेज़ होगा
+    }
+    
+    // एक बार में सिर्फ 50 दिखाएं ताकि ऐप हैंग न हो
+    const { data: students, error } = await query.limit(50); 
+    
+    list.innerHTML = "";
+    if (error) { list.innerHTML = "एरर: " + error.message; return; }
+    
+    if(students && students.length > 0) {
+        students.forEach(v => {
+            // पासवर्ड को UI पर छिपाने के लिए ******** कर दिया गया है
+            list.innerHTML += `<div class="card-item" style="padding:10px;"><div style="display:flex; align-items:center; gap:10px;"><img src="${v.photo || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'}" style="width:35px; height:35px; border-radius:50%; object-fit:cover;"><div><b style="font-size:14px; color:var(--primary);">${v.name}</b><p style="font-size:11px; margin:2px 0; color:#444;"><strong>ID:</strong> ${v.id} | <strong>Pass:</strong> <span style="color:#d32f2f;">********</span></p></div></div><div style="display:flex; gap:15px;"><i class="fas fa-edit" style="color:orange; cursor:pointer;" onclick="editStudent('${v.id}', '${v.name}', '${v.pass}')"></i><i class="fas fa-comments" style="color:var(--accent); cursor:pointer;" onclick="openAdminChat('${v.id}')"></i><i class="fas fa-trash" style="color:#f44336; cursor:pointer;" onclick="deleteMsg('student_credentials', '${v.id}'); searchIDs();"></i></div></div>`;
+        });
+    } else {
+        list.innerHTML = "<p style='text-align:center;'>कोई स्टूडेंट नहीं मिला</p>";
+    }
+}
+
+
+async function loadStudentChatList() {
+    const area = document.getElementById('admin-display-area'); area.innerHTML = "<h4>छात्र चुनें और चैट करें</h4>";
+    const { data: students } = await sb.from('student_credentials').select('*');
+    if(students) students.forEach(v => {
+        area.innerHTML += `<div class="card-item" onclick="openAdminChat('${v.id}')" style="cursor:pointer; border-left:4px solid #4caf50; padding:12px;"><div style="display:flex; align-items:center; gap:12px;"><img src="${v.photo || ''}" style="width:40px; height:40px; border-radius:50%; object-fit:cover;"><div><b style="color:var(--primary);">${v.name}</b><p style="font-size:10px; color:#666;">ID: ${v.id}</p></div></div><i class="fas fa-comments" style="color:var(--accent); font-size:20px;"></i></div>`;
+    });
+}
+
+async function editStudent(id, oldName, oldPass) {
+    const newName = prompt("नया नाम:", oldName); const newPass = prompt("नया पासवर्ड:", oldPass);
+    if (newName && newPass) { await sb.from('student_credentials').update({ name: newName.toUpperCase(), pass: newPass }).eq('id', id); alert("अपडेट हो गया!"); searchIDs(); }
+}
+
+function openAdminChat(sid) { activeChatID = sid; isGroupMode = false; document.getElementById('admin-reply-box').style.display = 'flex'; loadChatMessages('personal_chats', 'admin-display-area', "SIR", 'student_id', sid); }
+function openAdminGroupChat(el) { isGroupMode = true; switchTab('group_chats', el); document.getElementById('admin-reply-box').style.display = 'flex'; loadChatMessages('group_chats', 'admin-display-area', "SIR"); }
+
+// --- STUDENT PANELS ---
+function stdSwitch(m, el) {
+    document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active')); el.classList.add('active');
+    document.getElementById('std-chat-container').style.display = m === 'chat' ? 'flex' : 'none';
+    document.getElementById('std-p2p-container').style.display = m === 'p2p' ? 'flex' : 'none';
+    document.getElementById('std-group-container').style.display = m === 'group' ? 'flex' : 'none';
+    if(m === 'chat') { document.getElementById('std-top-title').innerText = "Doubt Box"; loadChatMessages('personal_chats', 'std-chat-area', user.name, 'student_id', user.id); }
+    if(m === 'group') { document.getElementById('std-top-title').innerText = "Global Group Chat"; loadChatMessages('group_chats', 'std-group-area', user.name); }
+    if(window.innerWidth < 768) toggleSidebar('std-sidebar');
+}
+
+async function checkAndStartChat() { 
+    const fId = document.getElementById('p2p-friend-id').value.trim(); if(!fId || fId === user.id) return alert("Invalid ID"); 
+    const { data: s } = await sb.from('student_credentials').select('*').eq('id', fId).maybeSingle();
+    if(s) { activeP2PUser = fId; document.getElementById('p2p-chat-box').style.display = 'flex'; document.getElementById('p2p-info').innerText = "Chatting with: " + s.name; loadChatMessages('p2p_chats', 'p2p-msg-area', user.name, 'room_id', [user.id, fId].sort().join("_")); } else alert("ID not found"); 
+}
+
+// --- VIDEO CALL (ZEGOCLOUD INTEGRATION) & STATS ---
+
+const Z_APP_ID = 1919222775; // आपका App ID (बिना कोट्स के)
+const Z_SERVER_SECRET = "7ffde750ead6f4cb3e389f1dbd8c15b0"; // आपका Server Secret (कोट्स के अंदर)
+
+let zpInstance = null; // ZegoCloud कंट्रोलर
+
+async function startVideoCall(mode) {
+    const roomName = (mode === 'admin') ? (isGroupMode ? 'GlobalGroup' : activeChatID) : user.id;
+    if(!roomName) return alert("कृपया पहले छात्र का चैट चुनें!");
+    
+    // ZegoCloud के लिए यूज़र डिटेल्स (स्पेस हटाकर)
+    const myName = (mode === 'admin') ? "ACP Admin" : user.name;
+    const myUserID = (mode === 'admin') ? "admin_sir" : user.id.replace(/[^a-zA-Z0-9]/g, '_');
+
+    document.getElementById('video-container').style.display = 'flex';
+    const container = document.getElementById('jitsi-iframe-area');
+    container.innerHTML = ''; // पुराना डेटा साफ करें
+
+    try {
+        // ZegoCloud Token बनाना
+        const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
+            Z_APP_ID, 
+            Z_SERVER_SECRET, 
+            roomName, 
+            myUserID, 
+            myName
+        );
+
+        // ZegoCloud शुरू करना
+        zpInstance = ZegoUIKitPrebuilt.create(kitToken);
+        zpInstance.joinRoom({
+            container: container,
+            scenario: {
+                mode: isGroupMode ? ZegoUIKitPrebuilt.GroupCall : ZegoUIKitPrebuilt.OneONoneCall,
+            },
+            showScreenSharingButton: true, // स्क्रीन शेयर करने का ऑप्शन
+            showPreJoinView: false, // सीधे मीटिंग में जाने के लिए
+            onLeaveRoom: () => {
+                closeVideoCall(); // जब लाल बटन से कॉल कटे तो स्क्रीन छिप जाए
+            }
+        });
+
+        // चैट में मैसेज भेजना कि "कॉल शुरू हो गई है"
+        const msgData = { sender: mode === 'admin' ? "SIR" : user.name, msg: "🎥 लाइव वीडियो क्लास / डाउट कॉल शुरू हो गई है। तुरंत ज्वाइन करें!", timestamp: Date.now() };
+        if(mode === 'admin') { 
+            if(isGroupMode) await sb.from('group_chats').insert([msgData]); 
+            else { msgData.student_id = activeChatID; await sb.from('personal_chats').insert([msgData]); } 
+        } else { 
+            msgData.student_id = user.id; await sb.from('personal_chats').insert([msgData]); 
+        }
+    } catch(err) {
+        alert("वीडियो कॉल लोड होने में समस्या आई। क्रेडेंशियल्स चेक करें।");
+        console.error(err);
+    }
+}
+
+function closeVideoCall() { 
+    if(zpInstance) {
+        zpInstance.destroy(); // ZegoCloud सर्वर से डिस्कनेक्ट करना
+        zpInstance = null;
+    }
+    document.getElementById('video-container').style.display = 'none'; 
+    document.getElementById('jitsi-iframe-area').innerHTML = ''; 
+}
+
+async function trackStats() { 
+    const { count: ids } = await sb.from('student_credentials').select('*', { count: 'exact', head: true }); document.getElementById('total-ids').innerText = ids || 0; 
+    const { count: att } = await sb.from('attendance').select('*', { count: 'exact', head: true }).eq('date', today); document.getElementById('present-count').innerText = att || 0;
+}
+
+// --- ONLINE PRESENCE TRACKING ---
+let presenceChannel = null;
+let onlineUsersList = {}; // ऑनलाइन छात्रों का डेटा स्टोर करने के लिए
+
+function trackOnline() {
+    // एक रियल-टाइम चैनल बनाएं
+    presenceChannel = sb.channel('online-users-room');
+    
+    // जब भी कोई ऑनलाइन/ऑफलाइन हो, तो यह चलेगा
+    presenceChannel.on('presence', { event: 'sync' }, () => {
+        const newState = presenceChannel.presenceState();
+        onlineUsersList = {};
+        let count = 0;
+        
+        for (let key in newState) {
+            // एडमिन को ऑनलाइन गिनती में नहीं जोड़ना है
+            if(newState[key][0].role !== 'admin') {
+                onlineUsersList[newState[key][0].id] = newState[key][0];
+                count++;
+            }
+        }
+        
+        // एडमिन पैनल में लाइव गिनती अपडेट करें
+        if(localStorage.getItem('sessionRole') === 'admin') {
+            const countEl = document.getElementById('online-count');
+            if(countEl) countEl.innerText = count;
+            
+            // अगर एडमिन ऑनलाइन लिस्ट देख रहा है, तो उसे तुरंत रिफ्रेश करें
+            if(currentMode === 'online_users_view') {
+                showOnlineUsers();
+            }
+        }
+    }).subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+            // जैसे ही ऐप जुड़े, अपना स्टेटस सबको बता दें
+            const role = localStorage.getItem('sessionRole');
+            if(role === 'student' && user) {
+                await presenceChannel.track({ id: user.id, name: user.name, photo: user.photo, role: 'student' });
+            } else if (role === 'admin') {
+                await presenceChannel.track({ id: 'admin', role: 'admin' });
+            }
+        }
+    });
+}
+
+// ऑनलाइन छात्रों की लिस्ट दिखाने का फंक्शन
+function showOnlineUsers() {
+    currentMode = 'online_users_view';
+    document.getElementById('admin-reply-box').style.display = 'none';
+    const area = document.getElementById('admin-display-area');
+    const totalOnline = Object.keys(onlineUsersList).length;
+    
+    area.innerHTML = `<h4 style="color:#2979ff;">🟢 अभी लाइव छात्र (${totalOnline})</h4>`;
+    
+    if(totalOnline === 0) {
+        area.innerHTML += `<div style="text-align:center; padding:20px; color:#777;">अभी कोई छात्र ऑनलाइन नहीं है।</div>`;
+        return;
+    }
+
+    // हर ऑनलाइन छात्र का कार्ड बनाएं
+    for(let id in onlineUsersList) {
+        const u = onlineUsersList[id];
+        area.innerHTML += `
+        <div class="card-item" style="border-left: 4px solid #4caf50;">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <img src="${u.photo || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'}" style="width:40px; height:40px; border-radius:50%; object-fit:cover;">
+                <div>
+                    <b style="color:var(--primary);">${u.name}</b>
+                    <p style="font-size:10px; margin:0; color:#4caf50;"><strong>ID:</strong> ${u.id} | 🟢 Online</p>
+                </div>
+            </div>
+            <i class="fas fa-comments" style="color:var(--accent); cursor:pointer; font-size:22px;" onclick="openAdminChat('${u.id}')" title="मैसेज करें"></i>
+        </div>`;
+    }
+}
+// --- PULL TO REFRESH (शून्य आवाज़ के साथ शांत रिफ्रेश) ---
+let pStartY = 0;
+document.addEventListener('touchstart', (e) => {
+    pStartY = e.touches[0].clientY;
+}, {passive: true});
+
+document.addEventListener('touchend', (e) => {
+    let pEndY = e.changedTouches[0].clientY;
+    
+    let scrollArea = document.getElementById('admin-display-area');
+    if (!scrollArea || scrollArea.offsetHeight === 0) {
+        let activeChat = document.querySelector('.chat-area:not([style*="display: none"])');
+        if(activeChat) scrollArea = activeChat;
+    }
+    
+    let isTop = true;
+    if (scrollArea && scrollArea.offsetHeight > 0) {
+        isTop = (scrollArea.scrollTop <= 5);
+    }
+
+    if (isTop && (pEndY - pStartY > 150)) {
+        // आवाज़ वाला नोटिफिकेशन हटा दिया गया है। 
+        // सिर्फ ऊपर का टाइटल बदलकर चुपचाप पेज रिफ्रेश हो जाएगा।
+        let topTitle = document.getElementById('admin-top-title') || document.getElementById('std-top-title');
+        if (topTitle) topTitle.innerText = "Refreshing...";
+        
+        setTimeout(() => {
+            window.location.reload(true);
+        }, 800);
+    }
+}, {passive: true});
+
+
+</script>
+</body>
+</html>
